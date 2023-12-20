@@ -1,0 +1,27 @@
+projection perspective:
+
+E : repère de la scene
+
+E_c : repère caméra
+P_c : position camera
+q_c : orientation camera
+
+f : focale de la camera
+
+problème :
+prédire la position du point M(x,y,z)_E dans l'image captée par la caméra.
+
+A/Exprimer M dans E_c
+	M_c = q_c.conjugate.rotate(M-P_c); -> M(x,y,z)_c
+
+B/projection dans le plan I
+	M(x,y)_I =>| x_i = f*x_c/z_c 
+		   | y_i = f*y_c/z_c 
+
+	M(x,y)_I = (x,y)_C*f/z_c
+
+C/verifier les bordures
+	calculer en amont les limites de x_i et y_i pour verifier si la projection est dans l'image
+
+
+
