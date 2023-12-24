@@ -32,20 +32,32 @@ String Communication::describe()
 {
     String description = DESCRIPTION_KEY;
     //every data is described by a name, a type and a size
-    description += "t" + String(TYPE_LONG_LONG) + String(sizeof(unsigned long long)) + ";";
+    if (send_t){
+    description += "t" + String(TYPE_UNSIGNED_LONG_LONG) + String(sizeof(unsigned long long)) + ";";
+    }
+    if(send_X){
     description += "X" + String(TYPE_VECTOR);
     if (X == nullptr) description += "?;";
     else description += String(X->size)+"*"+String(s1v)+";";
+    }
+    if(send_P){
     description += "P" + String(TYPE_MATRIX);
     if (P == nullptr) description += "?;";
     else description += String(P->rows)+"*"+String(P->cols)+"*"+String(s1v)+";";
+    }
+    if(send_Z){
     description += "Z" + String(TYPE_VECTOR);
     if (Z == nullptr) description += "?;";
     else description += String(Z->size)+"*"+String(s1v)+";";
+    }
+    if(send_h){
     description += "h" + String(TYPE_VECTOR);
     if (h == nullptr) description += "?;";
     else description += String(h->size)+"*"+String(s1v)+";";
+    }
+    if(send_internal_events){
     description += "e" + String(TYPE_STRING);
+    }
 
     return description;
 }
@@ -62,22 +74,12 @@ bool Communication::send(unsigned long long t){
     if (send_internal_events && internal_events == nullptr) return false;
 
     
-    //compute the sending_structure
-    sending_structure = 0;
-    if (send_t) sending_structure |= 1 << 0;
-    if (send_X) sending_structure |= 1 << 1;    
-    if (send_P) sending_structure |= 1 << 2;
-    if (send_Z) sending_structure |= 1 << 3;
-    if (send_h) sending_structure |= 1 << 4;
-    if (send_internal_events) sending_structure |= 1 << 5;
-
     //send the data
     if (send_description) {
         String description = describe()+END_LINE;
         if (SerialBT.print(description) != description.length()) return false;
         send_description = false;
     }
-    if (SerialBT.write(sending_structure) != 1) return false;
     if (send_t) if (SerialBT.write((uint8_t*)&t, sizeof(t)) != sizeof(t)) return false;
     if (send_X) if (SerialBT.write((uint8_t*)X->data, X->size*s1v) != X->size*s1v) return false;
     if (send_P) if (SerialBT.write((uint8_t*)P->data, P->rows*P->cols*s1v) != P->rows*P->cols*s1v) return false;

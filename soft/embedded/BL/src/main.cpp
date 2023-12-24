@@ -171,7 +171,7 @@ void setup()
       ekf.update();
     }
     unsigned long long t_ms = t * 1000;
-    if(!comm.send(t_ms)) Serial.println("error sending");
+    comm.send(t_ms);
     // cout << t << "\t" << true_x << "\t" << true_y << "\t" << true_theta << "\t" << (*ekf.x)(0) << "\t" << (*ekf.x)(1) << "\t" << (*ekf.x)(2) << "\n";
     // Serial.print(t);
     // Serial.print("\t");
@@ -200,5 +200,10 @@ void setup()
 
 void loop()
 {
-  delay(1000);
+  //reset if disconnected
+  if (!Serial || !comm.SerialBT.connected(0))
+  {
+    Serial.println("Restarting...");
+    ESP.restart();
+  }
 }

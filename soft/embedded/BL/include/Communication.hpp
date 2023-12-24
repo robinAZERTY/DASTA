@@ -6,7 +6,7 @@
 
 #define TYPE_CHAR "c"
 #define TYPE_INT "i"
-#define TYPE_LONG_LONG "L"
+#define TYPE_UNSIGNED_LONG_LONG "Q"
 #define TYPE_FLOAT "f"
 #define TYPE_DOUBLE "d"
 #define TYPE_STRING "s"
