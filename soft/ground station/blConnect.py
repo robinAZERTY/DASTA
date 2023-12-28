@@ -2,7 +2,7 @@ import socket
 import time
 import struct
 import numpy as np
-import matplotlib.pyplot as plt
+import cv2 as cv
 
 s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 
@@ -22,7 +22,7 @@ if c == 10:
     exit()
 
 END_LINE = "end_line\n".encode("utf-8")
-DESCRIPTION_KEY="description:".encode("utf-8")
+DESCRIPTION_KEY="send_stream:".encode("utf-8")
 
 #each message is ended by the string "end_line\n", so split the data by this bits
 
@@ -38,88 +38,84 @@ TYPE_STRING = 's'
 TYPE_VECTOR = 'v'
 TYPE_MATRIX = 'm'
 
+STD_TYPE_KEY = [TYPE_CHAR, TYPE_INT, TYPE_UNSIGNED_LONG_LONG, TYPE_FLOAT, TYPE_DOUBLE]
+
 
 def decodeLineContentType(line):
     
     line = line.decode("utf-8")
-    dataType = line.split(";")
+    dataType = line.split(",")
     #remove empty string
     dataType = [dataType[i] for i in range(len(dataType)) if dataType[i] != '']
     #list of dict
     lineContentType = [{"name":None, "type":None, "size":None} for i in range(len(dataType))]
     for i in range(len(dataType)):
-        lineContentType[i]["name"] = dataType[i][0]
-        lineContentType[i]["type"] = dataType[i][1]
-        lineContentType[i]["size"] = dataType[i][2:]
+        dataType2 = dataType[i].split(":")
+        lineContentType[i]["name"] = dataType2[0]
+        lineContentType[i]["type"] = dataType2[1]
+        lineContentType[i]["size"] = int(dataType2[2])
+        if lineContentType[i]["type"] == TYPE_MATRIX:
+            #add a "row" key to the dict
+            lineContentType[i]["row"] = dataType2[3]
     return lineContentType
+
+def myUnpack(data, dataFormat):
+    
+    size = dataFormat["size"]
+    for type_key in STD_TYPE_KEY:
+        if dataFormat["type"] == type_key:
+            return struct.unpack(type_key, data[:size])[0]
+        
+        
+    if dataFormat["type"] == TYPE_STRING:
+        return data[::] # until the end of the data
+    elif dataFormat["type"] == TYPE_VECTOR:
+        length = int(size/4) #float
+        oneElementSize = 4 #float
+        v = np.zeros(length, dtype=np.float32)
+        for j in range(length):
+            v[j] = struct.unpack("f", data[j*oneElementSize:(j+1)*oneElementSize])[0]
+        return v
+    elif dataFormat["type"] == TYPE_MATRIX:
+        height = int(dataFormat["row"])
+        width = int(size/height/4) #float
+        oneElementSize = 4 #float
+        m=np.zeros((height,width), dtype=np.float32)
+        for j in range(height):
+            for k in range(width):
+                a=struct.unpack("f", data[j*width*oneElementSize+k*oneElementSize:(j*width+k+1)*oneElementSize])[0]
+                m[j][k] = a
+        return m
+    
+    return None
 
 def decodeLine(lineContentType, line):
     #the line is a chain of bytes, split it by the size of each data
     #lineContentType[0] = {"name", "type", "size}
     #when the data is a vector or a matrix, the size represent the dimension and the size of each element , for example, a vector of 3 float is "3*4" and a matrix of 3x3 float is "3*3*4"
     data = {}
-    #add the name of the data in the dict
+    #add the name of the data in the dict, the first 32 bits are flags to indicate wich data is present
+    stream_register = struct.unpack("I", line[:4])[0]
+    line = line[4:]
     for i in range(len(lineContentType)):
-        data[lineContentType[i]["name"]] = None
-        
-    
-    for i in range(len(lineContentType)):
-        data[lineContentType[i]["name"]] = None
-        if lineContentType[i]["type"] == TYPE_VECTOR or lineContentType[i]["type"] == TYPE_MATRIX:
-            splitSize = lineContentType[i]["size"].split("*")
-            size = 1
-            for j in range(len(splitSize)):
-                size *= int(splitSize[j])
-        else:
-            size = int(lineContentType[i]["size"])
-            
-        if lineContentType[i]["type"] == TYPE_CHAR:
-            data[lineContentType[i]["name"]] = struct.unpack("c", line[:size])
-        elif lineContentType[i]["type"] == TYPE_INT:
-            data[lineContentType[i]["name"]] = struct.unpack("i", line[:size])
-        elif lineContentType[i]["type"] == TYPE_UNSIGNED_LONG_LONG:
-            data[lineContentType[i]["name"]] = struct.unpack("Q", line[:size])[0]
-        elif lineContentType[i]["type"] == TYPE_FLOAT:
-            data[lineContentType[i]["name"]] = struct.unpack("f", line[:size])
-        elif lineContentType[i]["type"] == TYPE_DOUBLE:
-            data[lineContentType[i]["name"]] = struct.unpack("d", line[:size])
-        elif lineContentType[i]["type"] == TYPE_STRING:
-            data[lineContentType[i]["name"]] = line[::] # until the end of the line
-        elif lineContentType[i]["type"] == TYPE_VECTOR:
-            length = int(lineContentType[i]["size"].split("*")[0])
-            oneElementSize = int(lineContentType[i]["size"].split("*")[1])
-            data[lineContentType[i]["name"]] = [None for j in range(length)]
-            for j in range(length):
-                data[lineContentType[i]["name"]][j] = struct.unpack("f", line[j*oneElementSize:(j+1)*oneElementSize])[0]
-        elif lineContentType[i]["type"] == TYPE_MATRIX:
-            height = int(lineContentType[i]["size"].split("*")[0])
-            width = int(lineContentType[i]["size"].split("*")[1])
-            oneElementSize = int(lineContentType[i]["size"].split("*")[2])
-            data[lineContentType[i]["name"]] = np.array((height,width))
-            for j in range(height):
-                for k in range(width):
-                    data[lineContentType[i]["name"]][j][k] = struct.unpack("f", line[j*width*oneElementSize+k*oneElementSize:(j*width+k+1)*oneElementSize])
-        
-        line = line[size:]
-        
+        if stream_register & (1 << i):
+            data[lineContentType[i]["name"]] = myUnpack(line[:lineContentType[i]["size"]], lineContentType[i])
+            line = line[lineContentType[i]["size"]:]
     return data
     
-#the X vector contains the position x, y and the orientation theta        
-#begin an animation with the position of the robot, display also the time
-plt.ion()
-fig = plt.figure()
-ax = fig.add_subplot(111)
-x = []
-y = []
-theta = []
-pline, = ax.plot(x, y, 'r-')
-plt.xlabel('x')
-plt.ylabel('y')
-plt.title('Robot position')
-plt.axis([-10, 10, -10, 10])
-plt.show()
+    
 
-#the data is received in a loop     
+
+#open a window
+cv.namedWindow("EKF", cv.WINDOW_NORMAL)
+cv.resizeWindow("EKF", 1000, 1000)
+cv.moveWindow("EKF", 0, 0)
+
+last_gps = np.array([0, 0])
+
+
+#the data is received in a loop  
+t0 = time.time()   
 
 bytess = b""
 while True:
@@ -132,25 +128,50 @@ while True:
     
     if DESCRIPTION_KEY in line:
         print("Description received:")
+        print(line.decode("utf-8"))
         lineContentType = decodeLineContentType(line[len(DESCRIPTION_KEY):])
         print(lineContentType)
     else:
-        # print("Data received:")
-        # print(line)
         data = decodeLine(lineContentType, line)
+        # print(data)
         #update the time
-        fig.suptitle("Time: " + str(data["t"]))
-        x.append(data["X"][0])
-        y.append(data["X"][1])
-        theta.append(data["X"][2])
+        if "gps" in data:
+            last_gps = data["gps"]
         
         if data["t"] >= 99_900:
             break
         
-pline.set_xdata(x)
-pline.set_ydata(y)
-fig.canvas.draw()
-fig.canvas.flush_events()
+        true_xy = np.array([data["true_X"][0], data["true_X"][1]])
+        ekf_xy = np.array([data["ekf_X"][0], data["ekf_X"][1]])
+        P_xy = data["ekf_P"][:2, :2]        
+        #create a black image
+        img = np.zeros((1000, 1000, 3), np.uint8)
+        #add the time as text in the image
+        ekf_t = data["t"]/1000
+        cv.putText(img, str(ekf_t), (10, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        #add also the difference between the true time and the time of the message
+        # cv.putText(img, str(time.time() - t0 - ekf_t), (10, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+        #draw a circle
+        cv.circle(img, (int(true_xy[0]*30+200), int(true_xy[1]*30+200)), 10, (0, 255, 0), 2)
+        # cv.circle(img, (int(ekf_xy[0]*30+200), int(ekf_xy[1]*30+200)), 10, (0, 0, 255), 2)
+        #draw a point where the ekf is
+        cv.circle(img, (int(ekf_xy[0]*30+200), int(ekf_xy[1]*30+200)), 2, (0, 0, 255), 2)
+        
+        #draw the covariance as an ellipse
+        w, v = np.linalg.eig(P_xy)
+        w = np.sqrt(w)
+        #draw the ellipse
+        cv.ellipse(img, (int(ekf_xy[0]*30+200), int(ekf_xy[1]*30+200)), (int(w[0]*30), int(w[1]*30)), np.rad2deg(np.arctan2(v[1][0], v[0][0])), 0, 360, (0, 0, 255), 2)
+        
+        #draw a cross where the gps is
+        cross_size = 10
+        cv.line(img, (int(last_gps[0]*30+200-cross_size), int(last_gps[1]*30+200)), (int(last_gps[0]*30+200+cross_size), int(last_gps[1]*30+200)), (255, 0, 0), 2)
+        cv.line(img, (int(last_gps[0]*30+200), int(last_gps[1]*30+200-cross_size)), (int(last_gps[0]*30+200), int(last_gps[1]*30+200+cross_size)), (255, 0, 0), 2)
+        cv.imshow("EKF", img)
+        
+        #update the window
+        cv.waitKey(1)
+
 s.close()
 input("Press enter to exit")
-        
