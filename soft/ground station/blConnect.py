@@ -1,91 +1,156 @@
-# import bluetooth #pip install git+https://github.com/pybluez/pybluez.git
-# import time
-# import sys
-# import os
-# import numpy as np
-# import matplotlib.pyplot as plt
-
-
-
-# connect_to = "C0:49:EF:CD:A7:D6"
-# #the connection don't use a secure protocol, so the password is not used
-
-# print("Connecting to " + connect_to)
-
-# sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-# #Create a bluetooth socket
-# connect = False
-
-# while  not connect:
-#     try:
-#         sock.connect((connect_to, 1))
-#         connect = True
-#     except:
-#         print("Can't connect to " + connect_to)
-        
-
-
-# print("Connected to " + connect_to)
-
-# def test_ping():
-#     #test the ping between the computer and the raspberry pi
-#     #send a message and measure the time it took to get the answer
-#     start = time.time()
-#     sock.send("pyucfuyfvuyfuyfouyfyufufuyfuyfyu")
-#     data = sock.recv(1024)
-#     end = time.time()
-#     return end - start
-    
-# # Average ping time: 0.026480768275260927s
-# # Standard deviation: 0.026622161634210904s
-# # Maximum ping time: 0.2710251808166504s
-# # Minimum ping time: 0.0s
-
-# # Average ping time: 0.010245248079299926s
-# # Standard deviation: 0.01644696737827921s
-# # Maximum ping time: 0.21167731285095215s
-# # Minimum ping time: 0.0s
-
-# # test_length = 10000
-# # test_time = np.zeros(test_length)
-# # for i in range(test_length):
-# #     print("Test " + str(i+1) + "/" + str(test_length))
-# #     test_time[i] = test_ping()
-    
-    
-# # print("Average ping time: " + str(np.mean(test_time)) + "s")
-# # print("Standard deviation: " + str(np.std(test_time)) + "s")
-# # print("Maximum ping time: " + str(np.max(test_time)) + "s")
-# # print("Minimum ping time: " + str(np.min(test_time)) + "s")
-
-# # #plot as a histogram
-# # plt.hist(test_time, bins=50,density=True)
-# # plt.title("Ping time")
-# # plt.xlabel("Time (s)")
-# # plt.ylabel("Number of tests")
-# # plt.show()
-    
-
-# #show the data received 
-# END_LINE = "end_line\n"
-
-# DESCRIPTION_KEY="description:"
-
-
-# while True:
-#     #read as string until the end of the line
-#     data = ""
-#     while not data.endswith(END_LINE):
-#         data += sock.recv(1024).decode("utf-8")
-        
-#     if data.startswith(DESCRIPTION_KEY):
-#         print(data[len(DESCRIPTION_KEY):])
-
-
-#pair the device if not already paired
-
 import socket
+import time
+import struct
+import numpy as np
+import matplotlib.pyplot as plt
 
 s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-s.connect(('C0:49:EF:CD:A7:D6', 1))
-print("Connected")
+
+c = 0
+while c < 10:
+    try:
+        s.connect(('C0:49:EF:CD:A7:D6', 1))
+        print("Connected")
+        break
+    except:
+        print("Can't connect")
+        c += 1
+        time.sleep(1)
+
+if c == 10:
+    print("Connection failed")
+    exit()
+
+END_LINE = "end_line\n".encode("utf-8")
+DESCRIPTION_KEY="description:".encode("utf-8")
+
+#each message is ended by the string "end_line\n", so split the data by this bits
+
+#lineContentType[0] = {"name", "type", "size}
+lineContentType = []
+
+TYPE_CHAR = 'c'
+TYPE_INT = 'i'
+TYPE_UNSIGNED_LONG_LONG = 'Q'
+TYPE_FLOAT = 'f'
+TYPE_DOUBLE = 'd'
+TYPE_STRING = 's'
+TYPE_VECTOR = 'v'
+TYPE_MATRIX = 'm'
+
+
+def decodeLineContentType(line):
+    
+    line = line.decode("utf-8")
+    dataType = line.split(";")
+    #remove empty string
+    dataType = [dataType[i] for i in range(len(dataType)) if dataType[i] != '']
+    #list of dict
+    lineContentType = [{"name":None, "type":None, "size":None} for i in range(len(dataType))]
+    for i in range(len(dataType)):
+        lineContentType[i]["name"] = dataType[i][0]
+        lineContentType[i]["type"] = dataType[i][1]
+        lineContentType[i]["size"] = dataType[i][2:]
+    return lineContentType
+
+def decodeLine(lineContentType, line):
+    #the line is a chain of bytes, split it by the size of each data
+    #lineContentType[0] = {"name", "type", "size}
+    #when the data is a vector or a matrix, the size represent the dimension and the size of each element , for example, a vector of 3 float is "3*4" and a matrix of 3x3 float is "3*3*4"
+    data = {}
+    #add the name of the data in the dict
+    for i in range(len(lineContentType)):
+        data[lineContentType[i]["name"]] = None
+        
+    
+    for i in range(len(lineContentType)):
+        data[lineContentType[i]["name"]] = None
+        if lineContentType[i]["type"] == TYPE_VECTOR or lineContentType[i]["type"] == TYPE_MATRIX:
+            splitSize = lineContentType[i]["size"].split("*")
+            size = 1
+            for j in range(len(splitSize)):
+                size *= int(splitSize[j])
+        else:
+            size = int(lineContentType[i]["size"])
+            
+        if lineContentType[i]["type"] == TYPE_CHAR:
+            data[lineContentType[i]["name"]] = struct.unpack("c", line[:size])
+        elif lineContentType[i]["type"] == TYPE_INT:
+            data[lineContentType[i]["name"]] = struct.unpack("i", line[:size])
+        elif lineContentType[i]["type"] == TYPE_UNSIGNED_LONG_LONG:
+            data[lineContentType[i]["name"]] = struct.unpack("Q", line[:size])[0]
+        elif lineContentType[i]["type"] == TYPE_FLOAT:
+            data[lineContentType[i]["name"]] = struct.unpack("f", line[:size])
+        elif lineContentType[i]["type"] == TYPE_DOUBLE:
+            data[lineContentType[i]["name"]] = struct.unpack("d", line[:size])
+        elif lineContentType[i]["type"] == TYPE_STRING:
+            data[lineContentType[i]["name"]] = line[::] # until the end of the line
+        elif lineContentType[i]["type"] == TYPE_VECTOR:
+            length = int(lineContentType[i]["size"].split("*")[0])
+            oneElementSize = int(lineContentType[i]["size"].split("*")[1])
+            data[lineContentType[i]["name"]] = [None for j in range(length)]
+            for j in range(length):
+                data[lineContentType[i]["name"]][j] = struct.unpack("f", line[j*oneElementSize:(j+1)*oneElementSize])[0]
+        elif lineContentType[i]["type"] == TYPE_MATRIX:
+            height = int(lineContentType[i]["size"].split("*")[0])
+            width = int(lineContentType[i]["size"].split("*")[1])
+            oneElementSize = int(lineContentType[i]["size"].split("*")[2])
+            data[lineContentType[i]["name"]] = np.array((height,width))
+            for j in range(height):
+                for k in range(width):
+                    data[lineContentType[i]["name"]][j][k] = struct.unpack("f", line[j*width*oneElementSize+k*oneElementSize:(j*width+k+1)*oneElementSize])
+        
+        line = line[size:]
+        
+    return data
+    
+#the X vector contains the position x, y and the orientation theta        
+#begin an animation with the position of the robot, display also the time
+plt.ion()
+fig = plt.figure()
+ax = fig.add_subplot(111)
+x = []
+y = []
+theta = []
+pline, = ax.plot(x, y, 'r-')
+plt.xlabel('x')
+plt.ylabel('y')
+plt.title('Robot position')
+plt.axis([-10, 10, -10, 10])
+plt.show()
+
+#the data is received in a loop     
+
+bytess = b""
+while True:
+    #read as string until the end of the line
+    while END_LINE not in bytess:
+        bytess += s.recv(1024)
+        
+    line = bytess.split(END_LINE)[0]
+    bytess = bytess[len(line) + len(END_LINE):]
+    
+    if DESCRIPTION_KEY in line:
+        print("Description received:")
+        lineContentType = decodeLineContentType(line[len(DESCRIPTION_KEY):])
+        print(lineContentType)
+    else:
+        # print("Data received:")
+        # print(line)
+        data = decodeLine(lineContentType, line)
+        #update the time
+        fig.suptitle("Time: " + str(data["t"]))
+        x.append(data["X"][0])
+        y.append(data["X"][1])
+        theta.append(data["X"][2])
+        
+        if data["t"] >= 99_900:
+            break
+        
+pline.set_xdata(x)
+pline.set_ydata(y)
+fig.canvas.draw()
+fig.canvas.flush_events()
+s.close()
+input("Press enter to exit")
+        
