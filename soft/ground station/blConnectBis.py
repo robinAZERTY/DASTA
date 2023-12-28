@@ -156,8 +156,7 @@ def packData(data, header):
     return struct.pack("I", send_register) + packedData
 
 send_head = None
-def send(s, data):
-    global send_head
+def send(s, data, send_head):
     if send_head == None:
         print("Error: header not received yet, can't send the data")
         return None
@@ -167,9 +166,43 @@ def send(s, data):
         return None
     #send the data
     to_send = packedData + END_LINE_KEY  
-    # print("sending : " + str(to_send))
     s.sendall(to_send)    
-        
+
+fake_send_head = [
+    {"name":"event code", "type":"c", "size":1},# event code, we should define a list of event code later (emergency stop (0), take off (1), land (2), ...)
+    {"name":"posCommand", "type":"v", "size":16},# posCommand = [x, y, z, yaw]
+    {"name":"newWaypoint", "type":"v", "size":20},# newWaypoint = [x, y, z, yaw, dt]
+    {"name":"maxSpeed", "type":"f", "size":4},# maxSpeed
+    {"name":"Xlimit", "type":"v", "size":8},# Xlimit = [min, max]
+    {"name":"Ylimit", "type":"v", "size":8},# Ylimit = [min, max]
+    {"name":"Zlimit", "type":"v", "size":8},# Zlimit = [min, max]
+    {"name":"pidPosX", "type":"v", "size":12},# pidPosX = [kp, ki, kd]
+    {"name":"pidPosY", "type":"v", "size":12},# pidPosY = [kp, ki, kd]
+    {"name":"pidPosZ", "type":"v", "size":12},# pidPosZ = [kp, ki, kd]
+    {"name":"pidYaw", "type":"v", "size":12},# pidYaw = [kp, ki, kd]
+    {"name":"pidPitch", "type":"v", "size":12},# pidPitch = [kp, ki, kd]
+    {"name":"pidRoll", "type":"v", "size":12},# pidRoll = [kp, ki, kd]
+    {"name":"cam1Pos", "type":"v", "size":12},# cam1Pos = [x, y, z]
+    {"name":"cam1Or", "type":"v", "size":12},# cam1Or = [yaw, pitch, roll]
+    {"name":"cam2Pos", "type":"v", "size":12},# cam2Pos = [x, y, z]
+    {"name":"cam2Or", "type":"v", "size":12},# cam2Or = [yaw, pitch, roll]
+    {"name":"led1Pos", "type":"v", "size":12},# led1Pos = [x, y, z] in the drone frame
+    {"name":"led2Pos", "type":"v", "size":12},# led2Pos = [x, y, z] in the drone frame
+    {"name":"led3Pos", "type":"v", "size":12},# led3Pos = [x, y, z] in the drone frame
+    {"name":"led4Pos", "type":"v", "size":12},# led4Pos = [x, y, z] in the drone frame
+    #... non exhaustive
+]   
+def fakeSend(data, send_head):
+    if send_head == None:
+        print("Error: header not received yet, can't send the data")
+        return None
+    #pack the data
+    packedData = packData(data, send_head)
+    if packedData == None:
+        return None
+    #send the data
+    to_send = packedData + END_LINE_KEY  
+    print("fake sending the packet of size " + str(len(to_send))+ " bytes : " + str(to_send))   
 '''
 _______________________________________________________
 ______________________RECEIVE__________________________
@@ -275,6 +308,40 @@ def receive(s):
         return None
     return datas
 
+FAKE_RECEIVED_DATA = {
+    "t": 0,
+    "ekf_X":#position, velocity, orientation(quaternion)
+        [
+            0.0,#x
+            0.0,#y
+            0.3,#z
+            0.0,#vx
+            0.0,#vy
+            0.1,#vz
+            1,#qw
+            0,#qx
+            0,#qy
+            0#qz
+        ],
+    "ekf_P":#covariance matrix
+        [
+            [0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.1]
+        ],
+    "cells":#cells voltage
+        [3.7, 3.7, 3.7],
+    
+    "event code": 0,   
+}
+
 
 '''
 _______________________________________________________
@@ -349,11 +416,12 @@ async def async_input(prompt=""):
     return await loop.run_in_executor(ThreadPoolExecutor(), lambda: input(prompt))
 
 
-async def userInput():
-    global send_head
+async def userInput(send_head):
+    #the send_head is a list of dict wich describe all the data the drone can understand (look at the fake_send_head for an example)
+    #the output must be a dict with all the data the user want to send to the drone. The key must be the same as the name in the send_head, and the type must match, otherwise the data will not be sent
     if send_head == None:
         return None
-    
+    #only for testing, I used input() but we should look at the dataBase events (when the user click on a button for example)
     data_to_send = {}
     for key in send_head:
         try:
@@ -375,12 +443,24 @@ async def receiveTask(s, file):
         if datas is not None:
             writeInDB(datas, file)
             await asyncio.sleep(0.1)
+            
+async def fakeReceiveTask(fakeData, file):
+    while True:
+        writeInDB(fakeData, file)
+        await asyncio.sleep(0.1)
     
 async def sendTask(s):
     while True:
         data = await userInput()
         if data is not None:
-            send(s, data)
+            send(s, data, send_head)
+            await asyncio.sleep(0.1)
+            
+async def fakeSendTask():
+    while True:
+        data = await userInput(fake_send_head)
+        if data is not None:
+            fakeSend(data, fake_send_head)
             await asyncio.sleep(0.1)
     
 
@@ -390,18 +470,30 @@ _______________________________________________________
 _____________________MAIN PROG_________________________
 _______________________________________________________
 '''
+
+
+fake_communication = True
+
 async def main():
-    connection = connect('C0:49:EF:CD:A7:D6')
-    if connection == None:
-        exit()
+    
+    if fake_communication:
+        file = createDB()
+        await asyncio.gather(
+            fakeReceiveTask(FAKE_RECEIVED_DATA, file),
+            fakeSendTask()
+        )
+    else:
+        connection = connect('C0:49:EF:CD:A7:D6')
+        if connection == None:
+            exit()
 
-    file = createDB()
+        file = createDB()
 
-    # Utilisez asyncio.gather pour exécuter les deux fonctions asynchrones en parallèle
-    await asyncio.gather(
-        receiveTask(connection, file),
-        sendTask(connection)
-    )
+        # Utilisez asyncio.gather pour exécuter les deux fonctions asynchrones en parallèle
+        await asyncio.gather(
+            receiveTask(connection, file),
+            sendTask(connection)
+        )
 
 # Exécutez le programme principal
 if __name__ == "__main__":
