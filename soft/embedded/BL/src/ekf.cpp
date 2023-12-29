@@ -68,11 +68,11 @@ Ekf::~Ekf()
 
 void Ekf::predict()
 {
-    // x<- f(x,u)
+    // x <- f(x,u)
     Vin=x;
     f(*x, *u);
 
-    // P<- Fx*P*Fx'
+    // P <- Fx*P*Fx'
     Min=Fx_val;
     Fx(*x, *u);
     tmp1->cols = x_dim;
@@ -83,7 +83,7 @@ void Ekf::predict()
     Fx_val->transpose();
 
 
-    // tmp2<- Fu*Q*Fu'
+    // tmp2 <- Fu*Q*Fu'
     Min=Fu_val;
     Fu(*x, *u);
     tmp1->cols = u_dim;
@@ -95,18 +95,18 @@ void Ekf::predict()
     mul(*tmp2, *tmp1, *Fu_val);
     Fu_val->transpose();
 
-    // P<- P+tmp2
+    // P <- P+tmp2
     add(*P, *P, *tmp2);
 }
 
 void Ekf::update()
 {
-    // y<- z-h(x)
+    // y <- z-h(x)
     Vin=y;
     h(*x);
     sub(*y, *z, *y);
 
-    // S<- H*P*H'+R
+    // S <- H*P*H'+R
     Min=H_val;
     H(*x);
     tmp1->cols = x_dim;
@@ -116,7 +116,7 @@ void Ekf::update()
     mul(*S, *tmp1, *H_val);
     add(*S, *S, *R);
 
-    // K<- P*H'*S^-1
+    // K <- P*H'*S^-1
     tmp1->cols = z_dim;
     tmp1->rows = x_dim;
     mul(*tmp1, *P, *H_val);
@@ -126,11 +126,11 @@ void Ekf::update()
     inv(*tmp2, *S);
     mul(*K, *tmp1, *tmp2);
 
-    // x<- x+K*y
+    // x <- x+K*y
     mul(*xtmp, *K, *y);
     add(*x, *x, *xtmp);
 
-    // P<- (I-K*H)*P
+    // P <- (I-K*H)*P
     tmp1->cols = x_dim;
     tmp1->rows = x_dim;
     mul(*tmp1, *K, *H_val);
@@ -140,7 +140,7 @@ void Ekf::update()
     mul(*tmp2, *tmp1, *P);
     cd(*P, *tmp2);
 
-    // P<- (P+P')/2 (symétrisation pour éviter les erreurs d'arrondi)
+    // P <- (P+P')/2 (symétrisation pour éviter les erreurs d'arrondi)
     refd(refP, *P);
     refP.transpose();
     add(*P, *P, refP);
