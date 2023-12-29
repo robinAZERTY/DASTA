@@ -390,7 +390,6 @@ async def async_input(prompt=""):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(ThreadPoolExecutor(), lambda: input(prompt))
 
-
 async def userInput(send_head,db):
     '''
     this function is called nonstop
@@ -405,24 +404,26 @@ async def userInput(send_head,db):
                 "posCommand": [0.0, 0.0, 0.0, 0.0]
             }
             
-    for now, async_input on the console is used for testing, but we should use the dataBase :
     1 - wait for a new event in the dataBase (for new content)
     2 - pack the data as a dictionnary
     3 - clear the event in the dataBase (remove the data we just packed)
     4 - return the packed data         
     '''
 
-    if send_head == None:
-        return None
+    # if send_head == None:
+    #     return None
     
-    data_to_send = {}
-    for key in send_head:
-        try:
-            data_to_send[key["name"]] = float(await async_input("Enter " + key["name"] + " : "))
-        except:
-            print("the data is not correct, it will not be sent")
-            continue
-    return data_to_send
+    # data_to_send = {}
+    # for key in send_head:
+    #     try:
+    #         data_to_send[key["name"]] = float(await async_input("Enter " + key["name"] + " : "))
+    #     except:
+    #         print("the data is not correct, it will not be sent")
+    #         continue
+    # return data_to_send
+    
+    #insted, use JSONFileHandler
+    
 
 '''
 _______________________________________________________

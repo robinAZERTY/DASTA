@@ -12,6 +12,7 @@ class JSONFileHandler(FileSystemEventHandler):
         try:
             with open(self.json_file_path, 'r') as json_file:
                 data = json.load(json_file)
+                print("JSON file read successfully")
             return data
         except (json.JSONDecodeError, FileNotFoundError):
             # Gérer les erreurs de décodage JSON ou de fichier non trouvé
@@ -25,6 +26,8 @@ class JSONFileHandler(FileSystemEventHandler):
             if new_data is not None and new_data != self.last_data:
                 print("New data:", new_data)
                 self.last_data = new_data
+                #return new_data as a dict
+                return new_data
 
 def watch_json_file(json_file_path):
     event_handler = JSONFileHandler(json_file_path)
@@ -40,5 +43,5 @@ def watch_json_file(json_file_path):
     observer.join()
 
 if __name__ == "__main__":
-    json_file_path = ".\\realTimeTelemetry.json"
+    json_file_path = ".//real time data base\\telemetry.json"
     watch_json_file(json_file_path)
