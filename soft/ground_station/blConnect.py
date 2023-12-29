@@ -336,6 +336,18 @@ FAKE_RECEIVED_DATA = {
             [0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.1]
         ],
+    "gyro":#gyro data
+        [
+            0.0,#wx
+            0.0,#wy
+            0.0#wz
+        ],
+    "acc":#accelerometer data
+        [
+            0.0,#ax
+            0.0,#ay
+            -9.81#az
+        ],
     "cells":#cells voltage
         [3.7, 3.7, 3.7],
     
@@ -358,44 +370,7 @@ def createDB(filePath = "realTimeTelemetry.json"):
 def writeInDB(data,db):
     #the data is a list of dict, the content can change depending what we receive from the device
     #it contain all the last data received from the device we didn't write in the dataBase yet
-    '''
-    [
-        {
-            't': 0,
-            'true_X': [
-                0.009999999776482582,
-                0.0,
-                0.009999999776482582
-                ],
-            'ekf_X': [
-                -0.3284205198287964,
-                -6.219870090484619,
-                0.009517640806734562
-                ],
-            'ekf_P': [
-                        [
-                            24.998188018798828,
-                            -7.80843886931718e-16,
-                            -6.52309206650159e-10
-                        ],
-                        [
-                            -1.0686599649363353e-15,
-                            24.998188018798828,
-                            6.853466771872263e-08
-                        ],
-                        [
-                            -6.523350748466328e-10,
-                            6.853952072560787e-08,
-                            0.030000999569892883
-                        ]
-                    ],
-            'gps': [
-                -0.32850492000579834,
-                -6.221425533294678
-                ]
-        },
-        ...
-    '''
+    #so this function is called every time we receive data from the device
     #for example, we can use a json file
     #clear the file
     db.seek(0)
@@ -416,12 +391,30 @@ async def async_input(prompt=""):
     return await loop.run_in_executor(ThreadPoolExecutor(), lambda: input(prompt))
 
 
-async def userInput(send_head):
-    #the send_head is a list of dict wich describe all the data the drone can understand (look at the fake_send_head for an example)
-    #the output must be a dict with all the data the user want to send to the drone. The key must be the same as the name in the send_head, and the type must match, otherwise the data will not be sent
+async def userInput(send_head,db):
+    '''
+    this function is called nonstop
+    args:
+        send_head : a list of dict wich describe all the data the drone can understand (look at the fake_send_head above for an example)
+        db : the dataBase object
+    return:
+        data_to_send : a dict with only the data the user want to send to the drone.
+        For example :
+            {
+                "event code": 0,
+                "posCommand": [0.0, 0.0, 0.0, 0.0]
+            }
+            
+    for now, async_input on the console is used for testing, but we should use the dataBase :
+    1 - wait for a new event in the dataBase (for new content)
+    2 - pack the data as a dictionnary
+    3 - clear the event in the dataBase (remove the data we just packed)
+    4 - return the packed data         
+    '''
+
     if send_head == None:
         return None
-    #only for testing, I used input() but we should look at the dataBase events (when the user click on a button for example)
+    
     data_to_send = {}
     for key in send_head:
         try:
@@ -471,7 +464,7 @@ _____________________MAIN PROG_________________________
 _______________________________________________________
 '''
 
-
+# for testing, we can use fake communication, so we don't need to connect to the drone to test the dataBase writing and reading
 fake_communication = True
 
 async def main():
@@ -489,7 +482,6 @@ async def main():
 
         file = createDB()
 
-        # Utilisez asyncio.gather pour exécuter les deux fonctions asynchrones en parallèle
         await asyncio.gather(
             receiveTask(connection, file),
             sendTask(connection)
