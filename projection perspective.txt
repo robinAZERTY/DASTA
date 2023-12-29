@@ -22,6 +22,3 @@ B/projection dans le plan I
 
 C/verifier les bordures
 	calculer en amont les limites de x_i et y_i pour verifier si la projection est dans l'image
-
-
-
