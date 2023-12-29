@@ -1,177 +1,500 @@
 import socket
 import time
 import struct
-import numpy as np
-import cv2 as cv
+import json
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
-s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 
-c = 0
-while c < 10:
+STD_TYPE_KEY = ['c', 'i', 'Q', 'f', 'd']
+VECTOR_KEY = 'v'
+MATRIX_KEY = 'm'
+VECTOR_CONTENT_TYPE_KEY = 'f'
+VECTOR_CONTENT_TYPE_SIZE = 4
+
+'''
+_______________________________________________________
+______________________CONNECTION__________________________
+_______________________________________________________
+'''
+#connect to the Bluetooth device
+def connect(address, port=1 , max_attempts=10):
+    #disconeect the device if it was already connected
     try:
-        s.connect(('C0:49:EF:CD:A7:D6', 1))
-        print("Connected")
-        break
+        s.close()
     except:
-        print("Can't connect")
-        c += 1
-        time.sleep(1)
-
-if c == 10:
-    print("Connection failed")
-    exit()
-
-END_LINE = "end_line\n".encode("utf-8")
-DESCRIPTION_KEY="send_stream:".encode("utf-8")
-
-#each message is ended by the string "end_line\n", so split the data by this bits
-
-#lineContentType[0] = {"name", "type", "size}
-lineContentType = []
-
-TYPE_CHAR = 'c'
-TYPE_INT = 'i'
-TYPE_UNSIGNED_LONG_LONG = 'Q'
-TYPE_FLOAT = 'f'
-TYPE_DOUBLE = 'd'
-TYPE_STRING = 's'
-TYPE_VECTOR = 'v'
-TYPE_MATRIX = 'm'
-
-STD_TYPE_KEY = [TYPE_CHAR, TYPE_INT, TYPE_UNSIGNED_LONG_LONG, TYPE_FLOAT, TYPE_DOUBLE]
-
-
-def decodeLineContentType(line):
+        pass
     
-    line = line.decode("utf-8")
-    dataType = line.split(",")
-    #remove empty string
-    dataType = [dataType[i] for i in range(len(dataType)) if dataType[i] != '']
-    #list of dict
-    lineContentType = [{"name":None, "type":None, "size":None} for i in range(len(dataType))]
-    for i in range(len(dataType)):
-        dataType2 = dataType[i].split(":")
-        lineContentType[i]["name"] = dataType2[0]
-        lineContentType[i]["type"] = dataType2[1]
-        lineContentType[i]["size"] = int(dataType2[2])
-        if lineContentType[i]["type"] == TYPE_MATRIX:
-            #add a "row" key to the dict
-            lineContentType[i]["row"] = dataType2[3]
-    return lineContentType
-
-def myUnpack(data, dataFormat):
-    
-    size = dataFormat["size"]
-    for type_key in STD_TYPE_KEY:
-        if dataFormat["type"] == type_key:
-            return struct.unpack(type_key, data[:size])[0]
-        
-        
-    if dataFormat["type"] == TYPE_STRING:
-        return data[::] # until the end of the data
-    elif dataFormat["type"] == TYPE_VECTOR:
-        length = int(size/4) #float
-        oneElementSize = 4 #float
-        v = np.zeros(length, dtype=np.float32)
-        for j in range(length):
-            v[j] = struct.unpack("f", data[j*oneElementSize:(j+1)*oneElementSize])[0]
-        return v
-    elif dataFormat["type"] == TYPE_MATRIX:
-        height = int(dataFormat["row"])
-        width = int(size/height/4) #float
-        oneElementSize = 4 #float
-        m=np.zeros((height,width), dtype=np.float32)
-        for j in range(height):
-            for k in range(width):
-                a=struct.unpack("f", data[j*width*oneElementSize+k*oneElementSize:(j*width+k+1)*oneElementSize])[0]
-                m[j][k] = a
-        return m
-    
-    return None
-
-def decodeLine(lineContentType, line):
-    #the line is a chain of bytes, split it by the size of each data
-    #lineContentType[0] = {"name", "type", "size}
-    #when the data is a vector or a matrix, the size represent the dimension and the size of each element , for example, a vector of 3 float is "3*4" and a matrix of 3x3 float is "3*3*4"
-    data = {}
-    #add the name of the data in the dict, the first 32 bits are flags to indicate wich data is present
-    stream_register = struct.unpack("I", line[:4])[0]
-    line = line[4:]
-    for i in range(len(lineContentType)):
-        if stream_register & (1 << i):
-            data[lineContentType[i]["name"]] = myUnpack(line[:lineContentType[i]["size"]], lineContentType[i])
-            line = line[lineContentType[i]["size"]:]
-    return data
-    
-    
-
-
-#open a window
-cv.namedWindow("EKF", cv.WINDOW_NORMAL)
-cv.resizeWindow("EKF", 1000, 1000)
-cv.moveWindow("EKF", 0, 0)
-
-last_gps = np.array([0, 0])
-
-
-#the data is received in a loop  
-t0 = time.time()   
-
-bytess = b""
-while True:
-    #read as string until the end of the line
-    while END_LINE not in bytess:
-        bytess += s.recv(1024)
-        
-    line = bytess.split(END_LINE)[0]
-    bytess = bytess[len(line) + len(END_LINE):]
-    
-    if DESCRIPTION_KEY in line:
-        print("Description received:")
-        print(line.decode("utf-8"))
-        lineContentType = decodeLineContentType(line[len(DESCRIPTION_KEY):])
-        print(lineContentType)
-    else:
-        data = decodeLine(lineContentType, line)
-        # print(data)
-        #update the time
-        if "gps" in data:
-            last_gps = data["gps"]
-        
-        if data["t"] >= 99_900:
+    print("Connecting to " + str(address) + " on port " + str(port) + "...")
+    #create the socket
+    s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+    #connect to the server
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            s.connect((address, port))
             break
-        
-        true_xy = np.array([data["true_X"][0], data["true_X"][1]])
-        ekf_xy = np.array([data["ekf_X"][0], data["ekf_X"][1]])
-        P_xy = data["ekf_P"][:2, :2]        
-        #create a black image
-        img = np.zeros((1000, 1000, 3), np.uint8)
-        #add the time as text in the image
-        ekf_t = data["t"]/1000
-        cv.putText(img, str(ekf_t), (10, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        #add also the difference between the true time and the time of the message
-        # cv.putText(img, str(time.time() - t0 - ekf_t), (10, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        except socket.error as e:
+            print("Error: socket error, retrying...")
+            print(e)
+            attempts += 1
+            time.sleep(1)
+    if attempts == max_attempts:
+        print("Error: can't connect to the server")
+        return None
+    
+    print("Connected")
+    return s
 
-        #draw a circle
-        cv.circle(img, (int(true_xy[0]*30+200), int(true_xy[1]*30+200)), 10, (0, 255, 0), 2)
-        # cv.circle(img, (int(ekf_xy[0]*30+200), int(ekf_xy[1]*30+200)), 10, (0, 0, 255), 2)
-        #draw a point where the ekf is
-        cv.circle(img, (int(ekf_xy[0]*30+200), int(ekf_xy[1]*30+200)), 2, (0, 0, 255), 2)
-        
-        #draw the covariance as an ellipse
-        w, v = np.linalg.eig(P_xy)
-        w = np.sqrt(w)
-        #draw the ellipse
-        cv.ellipse(img, (int(ekf_xy[0]*30+200), int(ekf_xy[1]*30+200)), (int(w[0]*30), int(w[1]*30)), np.rad2deg(np.arctan2(v[1][0], v[0][0])), 0, 360, (0, 0, 255), 2)
-        
-        #draw a cross where the gps is
-        cross_size = 10
-        cv.line(img, (int(last_gps[0]*30+200-cross_size), int(last_gps[1]*30+200)), (int(last_gps[0]*30+200+cross_size), int(last_gps[1]*30+200)), (255, 0, 0), 2)
-        cv.line(img, (int(last_gps[0]*30+200), int(last_gps[1]*30+200-cross_size)), (int(last_gps[0]*30+200), int(last_gps[1]*30+200+cross_size)), (255, 0, 0), 2)
-        cv.imshow("EKF", img)
-        
-        #update the window
-        cv.waitKey(1)
+'''
+_______________________________________________________
+_____________________TRANSMISSIONS_____________________
+_______________________________________________________
+'''
+END_LINE_KEY = "end_line\n".encode("utf-8")
 
-s.close()
-input("Press enter to exit")
+#when we receive the header, we need to decode it to know how to decode the data
+def decodeHeader(header):
+    #decode the header witch is in ascii like "name:type:size, name:type:size, ..."
+    try:
+        header = header.decode("utf-8")
+    except UnicodeDecodeError:
+        print("Error: header is not in ascii")
+        return None
+    except AttributeError as e:
+        print("Error: header is not a string")
+        print(e)
+        return None
+    except Exception as e:
+        print("Error: unknown error")
+        print(e)
+        return None
+
+    #split the header by ","
+    header = header.split(",")
+    #remove empty string
+    header = [header[i] for i in range(len(header)) if header[i] != '']
+    #list of dict
+    header_dict = [{"name":None, "type":None, "size":None} for i in range(len(header))]
+    for i in range(len(header)):       
+        header2 = header[i].split(":")
+        if len(header2) < 3:
+            print("Error: standard type need 3 arguments separated by ':' : " + str(header2))
+            return None
+        if header2[1] not in STD_TYPE_KEY and header2[1] != VECTOR_KEY and header2[1] != MATRIX_KEY:
+            print("Error: unknown type : " + header2[1])
+            return None
+        if header2[1] == MATRIX_KEY and len(header2) != 4:
+            print("Error: matrix type need 4 arguments separated by ':' : " + str(header2))
+            return None
+        if not header2[2].isdigit():
+            print("Error: size must be an integer : " + str(header2))
+            return None
+        
+        header_dict[i]["name"] = header2[0]
+        header_dict[i]["type"] = str(header2[1])
+        header_dict[i]["size"] = int(header2[2])
+        if header2[1] == MATRIX_KEY:
+            #add a "row" key to the dict
+            header_dict[i]["row"] = int(header2[3])
+    return header_dict
+
+
+'''
+_______________________________________________________
+______________________SEND_____________________________
+_______________________________________________________
+'''
+SEND_HEADER_KEY = "receive_stream:".encode("utf-8")
+def getTypeKey(var):
+    if type(var) == int:
+        return 'i'
+    elif type(var) == float:
+        return 'f'
+    elif type(var) == str:
+        if len(var) == 1:
+            return 'c'
+        else:
+            return 's'
+    elif type(var) == list:
+        oneElement = var[0]
+        if type(oneElement) != list:
+            return 'v'
+        else:
+            return 'm'
+    else:
+        print("Error: unknown type")
+        return None
+    
+    
+def packOneData(OneData, formatt):
+    # print("packing : " + str(OneData) + " with format : " + str(formatt))
+    #check if the type of the data is correct
+    if getTypeKey(OneData) != formatt["type"]:
+        print("Error: the type of the data is not correct")
+        return None
+    
+    packedData = struct.pack(formatt["type"], OneData)
+    if len(packedData) != formatt["size"]:
+        print("Error: the size of the data is not correct")
+        return None
+    
+    return packedData
+
+def packData(data, header):
+    #data is a dict
+    #header is a list of dict
+    
+    packedData = b''
+    send_register = 0
+    for i in range(len(header)):
+        #pack the data
+        if header[i]["name"] in data:
+            send_register += 1 << i
+            packedData += packOneData(data[header[i]["name"]], header[i])
+           
+    return struct.pack("I", send_register) + packedData
+
+send_head = None
+def send(s, data, send_head):
+    if send_head == None:
+        print("Error: header not received yet, can't send the data")
+        return None
+    #pack the data
+    packedData = packData(data, send_head)
+    if packedData == None:
+        return None
+    #send the data
+    to_send = packedData + END_LINE_KEY  
+    s.sendall(to_send)    
+
+fake_send_head = [
+    {"name":"event code", "type":"c", "size":1},# event code, we should define a list of event code later (emergency stop (0), take off (1), land (2), ...)
+    {"name":"posCommand", "type":"v", "size":16},# posCommand = [x, y, z, yaw]
+    {"name":"newWaypoint", "type":"v", "size":20},# newWaypoint = [x, y, z, yaw, dt]
+    {"name":"maxSpeed", "type":"f", "size":4},# maxSpeed
+    {"name":"Xlimit", "type":"v", "size":8},# Xlimit = [min, max]
+    {"name":"Ylimit", "type":"v", "size":8},# Ylimit = [min, max]
+    {"name":"Zlimit", "type":"v", "size":8},# Zlimit = [min, max]
+    {"name":"pidPosX", "type":"v", "size":12},# pidPosX = [kp, ki, kd]
+    {"name":"pidPosY", "type":"v", "size":12},# pidPosY = [kp, ki, kd]
+    {"name":"pidPosZ", "type":"v", "size":12},# pidPosZ = [kp, ki, kd]
+    {"name":"pidYaw", "type":"v", "size":12},# pidYaw = [kp, ki, kd]
+    {"name":"pidPitch", "type":"v", "size":12},# pidPitch = [kp, ki, kd]
+    {"name":"pidRoll", "type":"v", "size":12},# pidRoll = [kp, ki, kd]
+    {"name":"cam1Pos", "type":"v", "size":12},# cam1Pos = [x, y, z]
+    {"name":"cam1Or", "type":"v", "size":12},# cam1Or = [yaw, pitch, roll]
+    {"name":"cam2Pos", "type":"v", "size":12},# cam2Pos = [x, y, z]
+    {"name":"cam2Or", "type":"v", "size":12},# cam2Or = [yaw, pitch, roll]
+    {"name":"led1Pos", "type":"v", "size":12},# led1Pos = [x, y, z] in the drone frame
+    {"name":"led2Pos", "type":"v", "size":12},# led2Pos = [x, y, z] in the drone frame
+    {"name":"led3Pos", "type":"v", "size":12},# led3Pos = [x, y, z] in the drone frame
+    {"name":"led4Pos", "type":"v", "size":12},# led4Pos = [x, y, z] in the drone frame
+    #... non exhaustive
+]   
+def fakeSend(data, send_head):
+    if send_head == None:
+        print("Error: header not received yet, can't send the data")
+        return None
+    #pack the data
+    packedData = packData(data, send_head)
+    if packedData == None:
+        return None
+    #send the data
+    to_send = packedData + END_LINE_KEY  
+    print("fake sending the packet of size " + str(len(to_send))+ " bytes : " + str(to_send))   
+'''
+_______________________________________________________
+______________________RECEIVE__________________________
+_______________________________________________________
+'''
+RECEIVE_HEADER_KEY = "send_stream:".encode("utf-8")
+
+#decode the data knowing his format (name, type, size and additional info)
+def unpackOneData(oneData, formatt):
+    # print("unpacking : " + str(oneData) + " with format : " + str(formatt))
+    #check if the size of the data is correct
+    if len(oneData) != formatt["size"]:
+        print("Error: the size of the data is not correct")
+        return None
+    
+    size = formatt["size"]
+    for type_key in STD_TYPE_KEY:
+        if formatt["type"] == type_key:
+            return struct.unpack(type_key, oneData[:size])[0]
+    if formatt["type"] == VECTOR_KEY:
+        #unpack the vector
+        vector = []
+        for i in range(formatt["size"]//VECTOR_CONTENT_TYPE_SIZE):
+            vector.append(struct.unpack(VECTOR_CONTENT_TYPE_KEY, oneData[i*4:(i+1)*4])[0])
+        return vector
+    elif formatt["type"] == MATRIX_KEY:
+        #unpack the matrix
+        matrix = []
+        for i in range(formatt["row"]):
+            vector = []
+            cols = formatt["size"]//formatt["row"]//VECTOR_CONTENT_TYPE_SIZE
+            for j in range(cols):
+                index = i*formatt["size"]//formatt["row"] + j
+                vector.append(struct.unpack(VECTOR_CONTENT_TYPE_KEY, oneData[i*formatt["row"]*VECTOR_CONTENT_TYPE_SIZE+j*VECTOR_CONTENT_TYPE_SIZE:(i*formatt["row"]+j+1)*VECTOR_CONTENT_TYPE_SIZE])[0])
+            matrix.append(vector)
+        return matrix
+    else:
+        print("Error: unknown type")
+        return None
+    
+    
+#decode an entire line of bytes of data according to the header
+def unpackLine(line, header):
+    #assumming that the line includes the stream register and the data one after the other, in bytes
+    stream_register = struct.unpack("I", line[:4])[0]
+    data = line[4:]
+    #comput the size of the line exepted the stream register
+    data_size = 0
+    for i in range(len(header)):
+        if stream_register & (1 << i):
+            data_size += header[i]["size"]
+    if data_size != len(data):
+        print("Error: the size of the line is not correct")
+        return None
+    
+    data_dict = {}
+    #unpack the data
+    for i in range(len(header)):
+        #if the stream register is true for the i-th data meaning that the i-th data is present in the line
+        if stream_register & (1 << i):
+            oneData = data[:header[i]["size"]]
+            data_dict[header[i]["name"]] = unpackOneData(oneData, header[i])
+            #remove this data from the line
+            data = data[header[i]["size"]:]
+    return data_dict
+
+
+
+receive_head = None
+receive_buffer = b''
+
+def receive(s):
+    datas = []
+    global receive_buffer
+    receive_buffer += s.recv(1024)
+    #split the receive_buffer by the end line key
+    lines = receive_buffer.split(END_LINE_KEY)
+    #décaler la liste de 1 pour enlever le dernier élément qui n'est pas complet
+    lines = lines[:-1]
+    for line in lines:
+        #free this line from the receive_buffer
+        receive_buffer = receive_buffer[len(line)+len(END_LINE_KEY):]
+        #remove the end line key
+        #we have a complete line
+        #decode the header if the line begins with the header key
+        if line[:len(RECEIVE_HEADER_KEY)] == RECEIVE_HEADER_KEY:
+            head_bytes = line[len(RECEIVE_HEADER_KEY):]
+            global receive_head
+            # print("decoding header : " + str(head_bytes))
+            receive_head = decodeHeader(head_bytes)
+        elif line[:len(SEND_HEADER_KEY)] == SEND_HEADER_KEY:
+            head_bytes = line[len(SEND_HEADER_KEY):]
+            global send_head
+            send_head = decodeHeader(head_bytes)
+        else:
+            if receive_head == None:
+                print("Error: header not received yet, can't decode the data")
+                return None
+            #decode the data
+            datas.append(unpackLine(line, receive_head))
+    
+    if len(datas) == 0:
+        return None
+    return datas
+
+FAKE_RECEIVED_DATA = {
+    "t": 0,
+    "ekf_X":#position, velocity, orientation(quaternion)
+        [
+            0.0,#x
+            0.0,#y
+            0.3,#z
+            0.0,#vx
+            0.0,#vy
+            0.1,#vz
+            1,#qw
+            0,#qx
+            0,#qy
+            0#qz
+        ],
+    "ekf_P":#covariance matrix
+        [
+            [0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.1]
+        ],
+    "cells":#cells voltage
+        [3.7, 3.7, 3.7],
+    
+    "event code": 0,   
+}
+
+
+'''
+_______________________________________________________
+_____________________WRITE IN DB_______________________
+_______________________________________________________
+'''
+
+# I don't think a json is efficient for real time telemetry, we should use a database like sqlite or mysql or something like that
+
+def createDB(filePath = "realTimeTelemetry.json"):
+    #for example, we can use a json file
+    return open(filePath, "w+")
+
+def writeInDB(data,db):
+    #the data is a list of dict, the content can change depending what we receive from the device
+    #it contain all the last data received from the device we didn't write in the dataBase yet
+    '''
+    [
+        {
+            't': 0,
+            'true_X': [
+                0.009999999776482582,
+                0.0,
+                0.009999999776482582
+                ],
+            'ekf_X': [
+                -0.3284205198287964,
+                -6.219870090484619,
+                0.009517640806734562
+                ],
+            'ekf_P': [
+                        [
+                            24.998188018798828,
+                            -7.80843886931718e-16,
+                            -6.52309206650159e-10
+                        ],
+                        [
+                            -1.0686599649363353e-15,
+                            24.998188018798828,
+                            6.853466771872263e-08
+                        ],
+                        [
+                            -6.523350748466328e-10,
+                            6.853952072560787e-08,
+                            0.030000999569892883
+                        ]
+                    ],
+            'gps': [
+                -0.32850492000579834,
+                -6.221425533294678
+                ]
+        },
+        ...
+    '''
+    #for example, we can use a json file
+    #clear the file
+    db.seek(0)
+    db.truncate()
+    #write the data
+    json.dump(data, db, indent=2)
+    db.flush()
+
+
+'''
+_______________________________________________________
+_____________________READ USER IN______________________
+_______________________________________________________
+'''
+  
+async def async_input(prompt=""):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(ThreadPoolExecutor(), lambda: input(prompt))
+
+
+async def userInput(send_head):
+    #the send_head is a list of dict wich describe all the data the drone can understand (look at the fake_send_head for an example)
+    #the output must be a dict with all the data the user want to send to the drone. The key must be the same as the name in the send_head, and the type must match, otherwise the data will not be sent
+    if send_head == None:
+        return None
+    #only for testing, I used input() but we should look at the dataBase events (when the user click on a button for example)
+    data_to_send = {}
+    for key in send_head:
+        try:
+            data_to_send[key["name"]] = float(await async_input("Enter " + key["name"] + " : "))
+        except:
+            print("the data is not correct, it will not be sent")
+            continue
+    return data_to_send
+
+'''
+_______________________________________________________
+_________________MAIN THREADS__________________________
+_______________________________________________________
+'''
+async def receiveTask(s, file):
+    global receive_buffer
+    while True:
+        datas = receive(s)
+        if datas is not None:
+            writeInDB(datas, file)
+            await asyncio.sleep(0.1)
+            
+async def fakeReceiveTask(fakeData, file):
+    while True:
+        writeInDB(fakeData, file)
+        await asyncio.sleep(0.1)
+    
+async def sendTask(s):
+    while True:
+        data = await userInput()
+        if data is not None:
+            send(s, data, send_head)
+            await asyncio.sleep(0.1)
+            
+async def fakeSendTask():
+    while True:
+        data = await userInput(fake_send_head)
+        if data is not None:
+            fakeSend(data, fake_send_head)
+            await asyncio.sleep(0.1)
+    
+
+
+'''
+_______________________________________________________
+_____________________MAIN PROG_________________________
+_______________________________________________________
+'''
+
+
+fake_communication = True
+
+async def main():
+    
+    if fake_communication:
+        file = createDB()
+        await asyncio.gather(
+            fakeReceiveTask(FAKE_RECEIVED_DATA, file),
+            fakeSendTask()
+        )
+    else:
+        connection = connect('C0:49:EF:CD:A7:D6')
+        if connection == None:
+            exit()
+
+        file = createDB()
+
+        # Utilisez asyncio.gather pour exécuter les deux fonctions asynchrones en parallèle
+        await asyncio.gather(
+            receiveTask(connection, file),
+            sendTask(connection)
+        )
+
+# Exécutez le programme principal
+if __name__ == "__main__":
+    asyncio.run(main())
