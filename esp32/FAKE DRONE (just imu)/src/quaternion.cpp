@@ -1,0 +1,53 @@
+#include "quaternion.hpp"
+
+Quaternion::Quaternion():Vector(){
+    this->size = 4;
+    // (*this)(0) = 1;
+    // (*this)(1) = 0;
+    // (*this)(2) = 0;
+    // (*this)(3) = 0;
+}
+
+Quaternion::Quaternion(data_type w, data_type x, data_type y, data_type z) : Vector(4){
+    (*this)(0) = w;
+    (*this)(1) = x;
+    (*this)(2) = y;
+    (*this)(3) = z;
+}
+
+void Quaternion::conjugate(){
+    (*this)(1) = -(*this)(1);
+    (*this)(2) = -(*this)(2);
+    (*this)(3) = -(*this)(3);
+}
+
+data_type norm_square(Vector &v){
+    data_type norm = 0;
+    for(int i = 0; i < v.size; i++){
+        norm += v(i)*v(i);
+    }
+    return norm;
+}
+
+void Quaternion::normalize(){
+    data_type norm_inv = 1/sqrt(norm_square(*this));
+    (*this)(0) *= norm_inv;
+    (*this)(1) *= norm_inv;
+    (*this)(2) *= norm_inv;
+    (*this)(3) *= norm_inv;
+}
+
+void mul(Quaternion &res, const Quaternion &q1, const Quaternion &q2){
+    res(0) = q1(0)*q2(0) - q1(1)*q2(1) - q1(2)*q2(2) - q1(3)*q2(3);
+    res(1) = q1(0)*q2(1) + q1(1)*q2(0) + q1(2)*q2(3) - q1(3)*q2(2);
+    res(2) = q1(0)*q2(2) - q1(1)*q2(3) + q1(2)*q2(0) + q1(3)*q2(1);
+    res(3) = q1(0)*q2(3) + q1(1)*q2(2) - q1(2)*q2(1) + q1(3)*q2(0);
+}
+
+void rotate(Vector &res, const Quaternion &q, const Vector &v){
+    // res = q*v*q^-1 
+    // assuming q is normalized, q^-1 = q.conjugate()
+    res(0) = (q(0)*q(0) + q(1)*q(1) - q(2)*q(2) - q(3)*q(3))*v(0) + (2*q(1)*q(2) - 2*q(0)*q(3))*v(1) + (2*q(1)*q(3) + 2*q(0)*q(2))*v(2);
+    res(1) = (2*q(1)*q(2) + 2*q(0)*q(3))*v(0) + (q(0)*q(0) - q(1)*q(1) + q(2)*q(2) - q(3)*q(3))*v(1) + (2*q(2)*q(3) - 2*q(0)*q(1))*v(2);
+    res(2) = (2*q(1)*q(3) - 2*q(0)*q(2))*v(0) + (2*q(2)*q(3) + 2*q(0)*q(1))*v(1) + (q(0)*q(0) - q(1)*q(1) - q(2)*q(2) + q(3)*q(3))*v(2);
+}
