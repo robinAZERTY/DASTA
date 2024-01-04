@@ -16,6 +16,7 @@ class Quaternion : public Vector{
 
 void mul(Quaternion &res, const Quaternion &q1, const Quaternion &q2);
 void rotate(Vector &res, const Quaternion &q, const Vector &v);
+void q2rpy(Vector &res, const Quaternion &q);
 
 #ifndef ARDUINO
 #include "quaternion.cpp"

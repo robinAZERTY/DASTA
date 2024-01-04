@@ -38,6 +38,7 @@ public:
 
 // copy data : res<-a
 void cd(Vector &res, Vector &a);
+void cd(data_type *res, Vector &a);
 
 // add : res<-a+b
 void add(Vector &res, Vector &a, Vector &b);

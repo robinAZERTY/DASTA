@@ -22,7 +22,7 @@ Dasta::Dasta()
     communication.send_stream.include("position", estimator.position);
     communication.send_stream.include("velocity", estimator.velocity);
     communication.send_stream.include("orientation", estimator.orientation);
-    communication.send_stream.include("Covariance", *estimator.ekf->P);
+    // communication.send_stream.include("Covariance", *estimator.ekf->P);
 
     communication.receive_stream.include("acc_bias", sensors.acc_bias);
     communication.receive_stream.include("gyro_bias", sensors.gyro_bias);
@@ -30,4 +30,11 @@ Dasta::Dasta()
     communication.receive_stream.include("acc_scale", sensors.acc_scale);
     communication.receive_stream.include("gyro_scale", sensors.gyro_scale);
     communication.receive_stream.include("mag_scale", sensors.mag_scale);
+
+    cd(estimator.ekf->x->data + 10,sensors.gyro_bias);
+    cd(estimator.ekf->x->data + 13,sensors.acc_bias);
+    sensors.gyro_bias.data = estimator.ekf->x->data + 10;
+    sensors.acc_bias.data = estimator.ekf->x->data + 13;
+    sensors.gyro_scale.data = estimator.ekf->x->data + 16;
+    sensors.acc_scale.data = estimator.ekf->x->data + 25;
 }

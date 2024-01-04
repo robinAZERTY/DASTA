@@ -49,6 +49,13 @@ void cd(Vector &res, Vector &a)
         res.data[i] = a.data[i];
 }
 
+void cd(data_type *res, Vector &a)
+{
+    for (int i = 0; i < a.size; i++)
+        res[i] = a.data[i];
+}
+
+
 void add(Vector &res, Vector &a, Vector &b)
 {
     for (int i = 0; i < a.size; i++)

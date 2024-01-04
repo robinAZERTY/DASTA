@@ -44,10 +44,21 @@ void mul(Quaternion &res, const Quaternion &q1, const Quaternion &q2){
     res(3) = q1(0)*q2(3) + q1(1)*q2(2) - q1(2)*q2(1) + q1(3)*q2(0);
 }
 
+
 void rotate(Vector &res, const Quaternion &q, const Vector &v){
-    // res = q*v*q^-1 
-    // assuming q is normalized, q^-1 = q.conjugate()
-    res(0) = (q(0)*q(0) + q(1)*q(1) - q(2)*q(2) - q(3)*q(3))*v(0) + (2*q(1)*q(2) - 2*q(0)*q(3))*v(1) + (2*q(1)*q(3) + 2*q(0)*q(2))*v(2);
-    res(1) = (2*q(1)*q(2) + 2*q(0)*q(3))*v(0) + (q(0)*q(0) - q(1)*q(1) + q(2)*q(2) - q(3)*q(3))*v(1) + (2*q(2)*q(3) - 2*q(0)*q(1))*v(2);
-    res(2) = (2*q(1)*q(3) - 2*q(0)*q(2))*v(0) + (2*q(2)*q(3) + 2*q(0)*q(1))*v(1) + (q(0)*q(0) - q(1)*q(1) - q(2)*q(2) + q(3)*q(3))*v(2);
+    /*
+    [vx2,vy2,vz2] = rotateQ(vx, vy, vz,q1a, q1b, q1c, q1d)
+    vx2 = q1a*(q1a*vx - q1d*vy + q1c*vz) + q1c*(q1b*vy - q1c*vx + q1a*vz) + q1b*(q1b*vx + q1c*vy + q1d*vz) - q1d*(q1d*vx + q1a*vy - q1b*vz)
+    vy2 = q1a*(q1d*vx + q1a*vy - q1b*vz) - q1b*(q1b*vy - q1c*vx + q1a*vz) + q1c*(q1b*vx + q1c*vy + q1d*vz) + q1d*(q1a*vx - q1d*vy + q1c*vz) 
+    vz2 = q1a*(q1b*vy - q1c*vx + q1a*vz) + q1b*(q1d*vx + q1a*vy - q1b*vz) - q1c*(q1a*vx - q1d*vy + q1c*vz) + q1d*(q1b*vx + q1c*vy + q1d*vz)
+    */
+    res(0) = q(0)*(q(0)*v(0) - q(3)*v(1) + q(2)*v(2)) + q(2)*(q(1)*v(1) - q(2)*v(0) + q(0)*v(2)) + q(1)*(q(1)*v(0) + q(2)*v(1) + q(3)*v(2)) - q(3)*(q(3)*v(0) + q(0)*v(1) - q(1)*v(2));
+    res(1) = q(0)*(q(3)*v(0) + q(0)*v(1) - q(1)*v(2)) - q(1)*(q(1)*v(1) - q(2)*v(0) + q(0)*v(2)) + q(2)*(q(1)*v(0) + q(2)*v(1) + q(3)*v(2)) + q(3)*(q(0)*v(0) - q(3)*v(1) + q(2)*v(2));
+    res(2) = q(0)*(q(1)*v(1) - q(2)*v(0) + q(0)*v(2)) + q(1)*(q(3)*v(0) + q(0)*v(1) - q(1)*v(2)) - q(2)*(q(0)*v(0) - q(3)*v(1) + q(2)*v(2)) + q(3)*(q(1)*v(0) + q(2)*v(1) + q(3)*v(2));
+}
+
+void q2rpy(Vector &res, const Quaternion &q){
+    res(0) = atan2(2*(q(0)*q(1) + q(2)*q(3)), 1 - 2*(q(1)*q(1) + q(2)*q(2))); // roll
+    res(1) = asin(2*(q(0)*q(2) - q(3)*q(1))); // pitch
+    res(2) = atan2(2*(q(0)*q(3) + q(1)*q(2)), 1 - 2*(q(2)*q(2) + q(3)*q(3))); // yaw
 }
