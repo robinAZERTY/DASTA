@@ -3,7 +3,69 @@ import time
 import struct
 import json
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
+import threading
+import os
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import JSONFileHandler
+import matplotlib.pyplot as plt 
+import numpy as np 
+import JSONFileHandler
+import os
+import json
+import quaternion
+
+def initPlot():
+    plt.ion() 
+    fig = plt.figure() 
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_xlim(-1.5, 1.5)
+    ax.set_ylim(-1.5, 1.5)
+    ax.set_zlim(-1.5, 1.5)
+    fig.tight_layout()
+
+    #create 3d line to show the orientation
+    xdirLine, = ax.plot([0, 0], [0, 0], [0, 0], color='r')
+    ydirLine, = ax.plot([0, 0], [0, 0], [0, 0], color='g')
+    zdirLine, = ax.plot([0, 0], [0, 0], [0, 0], color='b')
+
+
+    DBFolder = "real time data base"
+    telemetryDBName = "telemetry.json"
+    # telemetry_db_path = os.path.join(DBFolder, telemetryDBName)
+    # h = JSONFileHandler.createJSONFileHandler(telemetry_db_path)
+    fig.canvas.draw() 
+    fig.canvas.flush_events() 
+    return fig, ax, xdirLine, ydirLine, zdirLine
+
+
+def updatePlot(data, fig, ax, xdirLine, ydirLine, zdirLine):
+    #get the last orientation
+    orientation = quaternion.quaternion(data["orientation"][0], data["orientation"][1], data["orientation"][2], data["orientation"][3])
+    #get the last position
+    position = np.array([data["position"][0], data["position"][1], data["position"][2]])
+    #get the last velocity
+    velocity = np.array([data["velocity"][0], data["velocity"][1], data["velocity"][2]])
+
+
+
+    orientation_rot = quaternion.as_rotation_matrix(orientation)
+
+    # Update arrow directions
+    arrow_length = 0.3
+    arx = np.array([arrow_length, 0, 0]) @ orientation_rot
+    ary = np.array([0, arrow_length, 0]) @ orientation_rot
+    arz = np.array([0, 0, arrow_length]) @ orientation_rot
+    
+    #update the 3d line        
+    xdirLine.set_data([position[0], position[0]+arx[0]], [position[1], position[1]+arx[1]])
+    ydirLine.set_data([position[0], position[0]+ary[0]], [position[1], position[1]+ary[1]])
+    zdirLine.set_data([position[0], position[0]+arz[0]], [position[1], position[1]+arz[1]])
+    
+    xdirLine.set_3d_properties([position[2], position[2]+arx[2]])
+    ydirLine.set_3d_properties([position[2], position[2]+ary[2]])
+    zdirLine.set_3d_properties([position[2], position[2]+arz[2]])
+
 
 
 STD_TYPE_KEY = ['c', 'i', 'Q', 'f', 'd']
@@ -147,15 +209,26 @@ def packData(data, header):
     
     packedData = b''
     send_register = 0
-    for i in range(len(header)):
+    # for i in range(len(header)):
+    #     #pack the data
+    #     if header[i]["name"] in data:
+    #         send_register += 1 << i
+    #         packedData += packOneData(data[header[i]["name"]], header[i])
+    for i in range(len(data)):
         #pack the data
-        if header[i]["name"] in data:
-            send_register += 1 << i
-            packedData += packOneData(data[header[i]["name"]], header[i])
-           
+        for key in data[i].keys():
+            if key in header:
+                send_register += 1 << i
+                packedData += packOneData(data[i][key], header[key])
+            else:
+                print("warning: " + key + " is not recognized by the embedded system, refer to the send_head to see the understood data")
+    if len(packedData) == 0:
+        return None   
+      
     return struct.pack("I", send_register) + packedData
 
 send_head = None
+
 def send(s, data, send_head):
     if send_head == None:
         print("Error: header not received yet, can't send the data")
@@ -360,37 +433,40 @@ _______________________________________________________
 _____________________WRITE IN DB_______________________
 _______________________________________________________
 '''
-
-# I don't think a json is efficient for real time telemetry, we should use a database like sqlite or mysql or something like that
-
-def createDB(filePath = "realTimeTelemetry.json"):
-    #for example, we can use a json file
-    return open(filePath, "w+")
-
 def writeInDB(data,db):
-    #the data is a list of dict, the content can change depending what we receive from the device
-    #it contain all the last data received from the device we didn't write in the dataBase yet
-    #so this function is called every time we receive data from the device
-    #for example, we can use a json file
-    #clear the file
+    #add the data to the dataBase wich is an open(jsonPath) file while keeping the old data
+    # db.seek(0)
+    # oldData = json.load(db)
+    # oldData.append(data)
+    # db.seek(0)
+    # json.dump(oldData, db, indent=4)
+    # db.truncate()
+    # db.flush() 
+    
+    # sachant que db est un open(jsonPath,'a') file, on peut faire :
+    # db.seek(0,2)
+    # json.dump(data, db, indent=4)
+    # db.write("\n")
+    
+    #overwritte the dataBase with the new data
     db.seek(0)
+    json.dump(data, db, indent=4)
     db.truncate()
-    #write the data
-    json.dump(data, db, indent=2)
     db.flush()
-
-
+    data = []
+    
+    
+    
 '''
 _______________________________________________________
 _____________________READ USER IN______________________
 _______________________________________________________
 '''
   
-async def async_input(prompt=""):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(ThreadPoolExecutor(), lambda: input(prompt))
 
-async def userInput(send_head,db):
+
+
+def userInput(send_head,db, handler):
     '''
     this function is called nonstop
     args:
@@ -409,20 +485,16 @@ async def userInput(send_head,db):
     3 - clear the event in the dataBase (remove the data we just packed)
     4 - return the packed data         
     '''
-
-    # if send_head == None:
-    #     return None
-    
-    # data_to_send = {}
-    # for key in send_head:
-    #     try:
-    #         data_to_send[key["name"]] = float(await async_input("Enter " + key["name"] + " : "))
-    #     except:
-    #         print("the data is not correct, it will not be sent")
-    #         continue
-    # return data_to_send
-    
-    #insted, use JSONFileHandler
+    if handler.new_data_available == False:
+        return None
+    handler.new_data_available = False
+    data_to_send = handler.last_data.copy()
+    #clear the dataBase
+    db.seek(0)
+    json.dump([], db, indent=4)
+    db.truncate()
+    db.flush()
+    return  data_to_send   
     
 
 '''
@@ -430,32 +502,52 @@ _______________________________________________________
 _________________MAIN THREADS__________________________
 _______________________________________________________
 '''
-async def receiveTask(s, file):
-    global receive_buffer
+received_data = []
+def receiveTask(s):
+    global received_data
     while True:
-        datas = receive(s)
-        if datas is not None:
-            writeInDB(datas, file)
-            await asyncio.sleep(0.1)
+        new_data = receive(s)
+        if receive_head is None:
+            continue
+        if new_data is not None:
+            received_data.append(new_data)
+                    
+def saveTask(file):
+    global received_data
+    while True:
+        writeInDB(received_data, file)#to slow
+        time.sleep(0.1)
             
-async def fakeReceiveTask(fakeData, file):
+def drawTask():
+    fig, ax, xdirLine, ydirLine, zdirLine = initPlot()
+    while True:
+        try:
+            updatePlot(received_data[-1], fig, ax, xdirLine, ydirLine, zdirLine)
+        except:
+            continue 
+        fig.canvas.draw() 
+        fig.canvas.flush_events()
+            
+def fakeReceiveTask(fakeData, file):
     while True:
         writeInDB(fakeData, file)
-        await asyncio.sleep(0.1)
+        time.sleep(1)
     
-async def sendTask(s):
+def sendTask(s,db, handler):
     while True:
-        data = await userInput()
+        data = userInput(send_head,db, handler)
         if data is not None:
             send(s, data, send_head)
-            await asyncio.sleep(0.1)
+        if send_head is None:
+            time.sleep(0.5)
+        # time.sleep(0.05)
             
-async def fakeSendTask():
+def fakeSendTask(db):
     while True:
-        data = await userInput(fake_send_head)
+        data = userInput(fake_send_head,db)
         if data is not None:
             fakeSend(data, fake_send_head)
-            await asyncio.sleep(0.1)
+            time.sleep(1)
     
 
 
@@ -466,28 +558,46 @@ _______________________________________________________
 '''
 
 # for testing, we can use fake communication, so we don't need to connect to the drone to test the dataBase writing and reading
-fake_communication = True
+fake_communication = False
 
-async def main():
+def main(telemetry_db, userCommand_db):
+    h = JSONFileHandler.createJSONFileHandler(userCommand_db.name)
     
     if fake_communication:
-        file = createDB()
-        await asyncio.gather(
-            fakeReceiveTask(FAKE_RECEIVED_DATA, file),
-            fakeSendTask()
-        )
+        threading.Thread(target=fakeReceiveTask, args=(FAKE_RECEIVED_DATA, telemetry_db)).start()
+        threading.Thread(target=fakeSendTask, args=(userCommand_db,)).start()
+        
     else:
-        connection = connect('C0:49:EF:CD:A7:D6')
+        connection = connect('FC:F5:C4:27:09:16')
         if connection == None:
             exit()
 
-        file = createDB()
+        threading.Thread(target=receiveTask, args=(connection,)).start()
+        threading.Thread(target=sendTask, args=(connection,userCommand_db,h)).start()
+        threading.Thread(target=saveTask, args=(telemetry_db,)).start()
 
-        await asyncio.gather(
-            receiveTask(connection, file),
-            sendTask(connection)
-        )
 
+
+        
 # Exécutez le programme principal
 if __name__ == "__main__":
-    asyncio.run(main())
+    #make real time data base folder in read and write mode
+    DBFolder = "real time data base"
+    commandDBName = "userCommand.json"
+    telemetryDBName = "telemetry.json"
+    
+    if not os.path.exists(DBFolder):
+        os.makedirs(DBFolder)
+    
+    #create the dataBase files
+    #reate the userCommand.json file
+    userCommand_db_path = os.path.join(DBFolder, commandDBName)
+    userCommand_db = open(userCommand_db_path, "w+")
+    json.dump([], userCommand_db, indent=4)
+    userCommand_db.flush()
+    userCommand_db.seek(0)
+    
+    #create telemetry.json
+    telemetry_db_path = os.path.join(DBFolder, telemetryDBName)
+    telemetry_db = open(telemetry_db_path, "w+")
+    main(telemetry_db, userCommand_db)
