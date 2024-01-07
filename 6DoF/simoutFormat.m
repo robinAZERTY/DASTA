@@ -1,4 +1,4 @@
-function [t,x,y,z,vx,vy,vz,ax,ay,az,qw,qx,qy,qz,wxx,wyy,wzz,axx,ayy,azz,gyr_xx,gyr_yy,gyr_zz,acc_xx,acc_yy,acc_zz,temperature, gps_xx, gps_yy, gps_zz] = simoutFormat(simout)
+function [t,x,y,z,vx,vy,vz,ax,ay,az,qw,qx,qy,qz,wxx,wyy,wzz,axx,ayy,azz,gyr_xx,gyr_yy,gyr_zz,acc_xx,acc_yy,acc_zz,temperature, gps_xx, gps_yy, gps_zz, l1c1x,l1c1y, l2c1x,l2c1y, l1c2x,l1c2y, l2c2x,l2c2y] = simoutFormat(simout)
 
     t = simout.time;
     
@@ -41,4 +41,16 @@ function [t,x,y,z,vx,vy,vz,ax,ay,az,qw,qx,qy,qz,wxx,wyy,wzz,axx,ayy,azz,gyr_xx,g
     gps_xx = transpose(data(27,:));
     gps_yy = transpose(data(28,:));
     gps_zz = transpose(data(29,:));
+
+    l1c1x = transpose(data(30,:));
+    l1c1y = transpose(data(31,:));
+
+    l2c1x = transpose(data(32,:));
+    l2c1y = transpose(data(33,:));
+
+    l1c2x = transpose(data(34,:));
+    l1c2y = transpose(data(35,:));
+
+    l2c2x = transpose(data(36,:));
+    l2c2y = transpose(data(37,:));
 end

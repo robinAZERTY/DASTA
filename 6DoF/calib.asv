@@ -68,7 +68,7 @@ for i = 1:length(t)
     ekf.Un = [gyr_xx(i); gyr_yy(i); gyr_zz(i); acc_xx(i); acc_yy(i); acc_zz(i)];
     ekf = ekf.predict();
     ekf.Zn = [gps_x(i);gps_y(i);gps_z(i)];% le système reste proche de l'origine
-    ekf = ekf.update();
+    %ekf = ekf.update();
     X_est(i,:) = ekf.Xn;
     P_est(i,:,:) = ekf.Pn;
 end
@@ -294,7 +294,7 @@ function next_X = transitionFunction(prev_X, U)
         %fonction de transition d'état (pour la prédiction à l'aide des
         %commandes ou capteurs proprioceptifs)
         
-        dt = 0.1;
+        dt = 1/100;
         [x,y,z,qw,qx,qy,qz,vx,vy,vz,abx,aby,abz,ao11,ao12,ao13,ao21,ao22,ao23,ao31,ao32,ao33,gbx,gby,gbz,go11,go12,go13,go21,go22,go23,go31,go32,go33,g] = deal(prev_X(1),prev_X(2),prev_X(3),prev_X(4),prev_X(5),prev_X(6),prev_X(7),prev_X(8),prev_X(9),prev_X(10),prev_X(11),prev_X(12),prev_X(13),prev_X(14),prev_X(15),prev_X(16),prev_X(17),prev_X(18),prev_X(19),prev_X(20),prev_X(21),prev_X(22),prev_X(23),prev_X(24),prev_X(25),prev_X(26),prev_X(27),prev_X(28),prev_X(29),prev_X(30),prev_X(31),prev_X(32),prev_X(33),prev_X(34),prev_X(35));
         [gx,gy,gz,ax,ay,az] = deal(U(1),U(2),U(3),U(4),U(5),U(6));
         
