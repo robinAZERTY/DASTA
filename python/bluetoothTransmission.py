@@ -5,66 +5,7 @@ import json
 import asyncio
 import threading
 import os
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-import JSONFileHandler
-import matplotlib.pyplot as plt 
-import numpy as np 
-import JSONFileHandler
-import os
-import json
-import quaternion
 
-def initPlot():
-    plt.ion() 
-    fig = plt.figure() 
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_xlim(-1.5, 1.5)
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_zlim(-1.5, 1.5)
-    fig.tight_layout()
-
-    #create 3d line to show the orientation
-    xdirLine, = ax.plot([0, 0], [0, 0], [0, 0], color='r')
-    ydirLine, = ax.plot([0, 0], [0, 0], [0, 0], color='g')
-    zdirLine, = ax.plot([0, 0], [0, 0], [0, 0], color='b')
-
-
-    DBFolder = "real time data base"
-    telemetryDBName = "telemetry.json"
-    # telemetry_db_path = os.path.join(DBFolder, telemetryDBName)
-    # h = JSONFileHandler.createJSONFileHandler(telemetry_db_path)
-    fig.canvas.draw() 
-    fig.canvas.flush_events() 
-    return fig, ax, xdirLine, ydirLine, zdirLine
-
-
-def updatePlot(data, fig, ax, xdirLine, ydirLine, zdirLine):
-    #get the last orientation
-    orientation = quaternion.quaternion(data["orientation"][0], data["orientation"][1], data["orientation"][2], data["orientation"][3])
-    #get the last position
-    position = np.array([data["position"][0], data["position"][1], data["position"][2]])
-    #get the last velocity
-    velocity = np.array([data["velocity"][0], data["velocity"][1], data["velocity"][2]])
-
-
-
-    orientation_rot = quaternion.as_rotation_matrix(orientation)
-
-    # Update arrow directions
-    arrow_length = 0.3
-    arx = np.array([arrow_length, 0, 0]) @ orientation_rot
-    ary = np.array([0, arrow_length, 0]) @ orientation_rot
-    arz = np.array([0, 0, arrow_length]) @ orientation_rot
-    
-    #update the 3d line        
-    xdirLine.set_data([position[0], position[0]+arx[0]], [position[1], position[1]+arx[1]])
-    ydirLine.set_data([position[0], position[0]+ary[0]], [position[1], position[1]+ary[1]])
-    zdirLine.set_data([position[0], position[0]+arz[0]], [position[1], position[1]+arz[1]])
-    
-    xdirLine.set_3d_properties([position[2], position[2]+arx[2]])
-    ydirLine.set_3d_properties([position[2], position[2]+ary[2]])
-    zdirLine.set_3d_properties([position[2], position[2]+arz[2]])
 
 
 
@@ -168,6 +109,7 @@ ______________________SEND_____________________________
 _______________________________________________________
 '''
 SEND_HEADER_KEY = "receive_stream:".encode("utf-8")
+
 def getTypeKey(var):
     if type(var) == int:
         return 'i'
@@ -241,41 +183,7 @@ def send(s, data, send_head):
     to_send = packedData + END_LINE_KEY  
     s.sendall(to_send)    
 
-fake_send_head = [
-    {"name":"event code", "type":"c", "size":1},# event code, we should define a list of event code later (emergency stop (0), take off (1), land (2), ...)
-    {"name":"posCommand", "type":"v", "size":16},# posCommand = [x, y, z, yaw]
-    {"name":"newWaypoint", "type":"v", "size":20},# newWaypoint = [x, y, z, yaw, dt]
-    {"name":"maxSpeed", "type":"f", "size":4},# maxSpeed
-    {"name":"Xlimit", "type":"v", "size":8},# Xlimit = [min, max]
-    {"name":"Ylimit", "type":"v", "size":8},# Ylimit = [min, max]
-    {"name":"Zlimit", "type":"v", "size":8},# Zlimit = [min, max]
-    {"name":"pidPosX", "type":"v", "size":12},# pidPosX = [kp, ki, kd]
-    {"name":"pidPosY", "type":"v", "size":12},# pidPosY = [kp, ki, kd]
-    {"name":"pidPosZ", "type":"v", "size":12},# pidPosZ = [kp, ki, kd]
-    {"name":"pidYaw", "type":"v", "size":12},# pidYaw = [kp, ki, kd]
-    {"name":"pidPitch", "type":"v", "size":12},# pidPitch = [kp, ki, kd]
-    {"name":"pidRoll", "type":"v", "size":12},# pidRoll = [kp, ki, kd]
-    {"name":"cam1Pos", "type":"v", "size":12},# cam1Pos = [x, y, z]
-    {"name":"cam1Or", "type":"v", "size":12},# cam1Or = [yaw, pitch, roll]
-    {"name":"cam2Pos", "type":"v", "size":12},# cam2Pos = [x, y, z]
-    {"name":"cam2Or", "type":"v", "size":12},# cam2Or = [yaw, pitch, roll]
-    {"name":"led1Pos", "type":"v", "size":12},# led1Pos = [x, y, z] in the drone frame
-    {"name":"led2Pos", "type":"v", "size":12},# led2Pos = [x, y, z] in the drone frame
-    {"name":"led3Pos", "type":"v", "size":12},# led3Pos = [x, y, z] in the drone frame
-    {"name":"led4Pos", "type":"v", "size":12},# led4Pos = [x, y, z] in the drone frame
-    #... non exhaustive
-]   
-def fakeSend(data, send_head):
-    if send_head == None:
-        print("Error: header not received yet, can't send the data")
-        return None
-    #pack the data
-    packedData = packData(data, send_head)
-    if packedData == None:
-        return None
-    #send the data
-    to_send = packedData + END_LINE_KEY  
-    print("fake sending the packet of size " + str(len(to_send))+ " bytes : " + str(to_send))   
+   
 '''
 _______________________________________________________
 ______________________RECEIVE__________________________
@@ -381,51 +289,23 @@ def receive(s):
         return None
     return datas
 
-FAKE_RECEIVED_DATA = {
-    "t": 0,
-    "ekf_X":#position, velocity, orientation(quaternion)
-        [
-            0.0,#x
-            0.0,#y
-            0.3,#z
-            0.0,#vx
-            0.0,#vy
-            0.1,#vz
-            1,#qw
-            0,#qx
-            0,#qy
-            0#qz
-        ],
-    "ekf_P":#covariance matrix
-        [
-            [0.1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0.1, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0.1, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.1]
-        ],
-    "gyro":#gyro data
-        [
-            0.0,#wx
-            0.0,#wy
-            0.0#wz
-        ],
-    "acc":#accelerometer data
-        [
-            0.0,#ax
-            0.0,#ay
-            -9.81#az
-        ],
-    "cells":#cells voltage
-        [3.7, 3.7, 3.7],
-    
-    "event code": 0,   
-}
+
+'''
+_______________________________________________________
+_____________________DATA BASE SET_____________________
+_______________________________________________________
+'''
+
+def open_dbs()->tuple:
+    '''
+    open the dataBase objects
+    return:
+        telemetry_db : the dataBase object for the telemetry
+        userCommand_db : the dataBase object for the userCommand
+        
+    '''
+    return None, None
+
 
 
 '''
@@ -433,28 +313,18 @@ _______________________________________________________
 _____________________WRITE IN DB_______________________
 _______________________________________________________
 '''
-def writeInDB(data,db):
-    #add the data to the dataBase wich is an open(jsonPath) file while keeping the old data
-    # db.seek(0)
-    # oldData = json.load(db)
-    # oldData.append(data)
-    # db.seek(0)
-    # json.dump(oldData, db, indent=4)
-    # db.truncate()
-    # db.flush() 
+def writeInDB(data,db)->None:
+    '''
+    add the data to the dataBase while keeping the old data, and then, clear the data list
     
-    # sachant que db est un open(jsonPath,'a') file, on peut faire :
-    # db.seek(0,2)
-    # json.dump(data, db, indent=4)
-    # db.write("\n")
-    
-    #overwritte the dataBase with the new data
-    db.seek(0)
-    json.dump(data, db, indent=4)
-    db.truncate()
-    db.flush()
-    data = []
-    
+    args:
+        data : a list of dict with the data to write in the dataBase
+        db : the dataBase object
+    return:
+        None
+    '''
+
+    pass
     
     
 '''
@@ -464,16 +334,14 @@ _______________________________________________________
 '''
   
 
-
-
-def userInput(send_head,db, handler):
+def userInput(send_head,db)->dict:
     '''
     this function is called nonstop
     args:
         send_head : a list of dict wich describe all the data the drone can understand (look at the fake_send_head above for an example)
         db : the dataBase object
     return:
-        data_to_send : a dict with only the data the user want to send to the drone.
+        data_to_send : a dict with only the data the user want to send to the drone, it can be uses or not
         For example :
             {
                 "event code": 0,
@@ -485,24 +353,17 @@ def userInput(send_head,db, handler):
     3 - clear the event in the dataBase (remove the data we just packed)
     4 - return the packed data         
     '''
-    if handler.new_data_available == False:
-        return None
-    handler.new_data_available = False
-    data_to_send = handler.last_data.copy()
-    #clear the dataBase
-    db.seek(0)
-    json.dump([], db, indent=4)
-    db.truncate()
-    db.flush()
-    return  data_to_send   
+    return None
     
 
 '''
 _______________________________________________________
 _________________MAIN THREADS__________________________
 _______________________________________________________
+using threading to run multiple tasks at the same time, so the communication is not blocked by the user input or the dataBase writing
 '''
 received_data = []
+
 def receiveTask(s):
     global received_data
     while True:
@@ -518,37 +379,15 @@ def saveTask(file):
         writeInDB(received_data, file)#to slow
         time.sleep(0.1)
             
-def drawTask():
-    fig, ax, xdirLine, ydirLine, zdirLine = initPlot()
-    while True:
-        try:
-            updatePlot(received_data[-1], fig, ax, xdirLine, ydirLine, zdirLine)
-        except:
-            continue 
-        fig.canvas.draw() 
-        fig.canvas.flush_events()
-            
-def fakeReceiveTask(fakeData, file):
-    while True:
-        writeInDB(fakeData, file)
-        time.sleep(1)
     
-def sendTask(s,db, handler):
+def sendTask(s,db):
     while True:
-        data = userInput(send_head,db, handler)
+        data = userInput(send_head,db)
         if data is not None:
             send(s, data, send_head)
         if send_head is None:
             time.sleep(0.5)
-        # time.sleep(0.05)
             
-def fakeSendTask(db):
-    while True:
-        data = userInput(fake_send_head,db)
-        if data is not None:
-            fakeSend(data, fake_send_head)
-            time.sleep(1)
-    
 
 
 '''
@@ -557,47 +396,20 @@ _____________________MAIN PROG_________________________
 _______________________________________________________
 '''
 
-# for testing, we can use fake communication, so we don't need to connect to the drone to test the dataBase writing and reading
-fake_communication = False
+def main():
+    connection = connect('FC:F5:C4:27:09:16')
+    if connection == None:
+        exit()
 
-def main(telemetry_db, userCommand_db):
-    h = JSONFileHandler.createJSONFileHandler(userCommand_db.name)
-    
-    if fake_communication:
-        threading.Thread(target=fakeReceiveTask, args=(FAKE_RECEIVED_DATA, telemetry_db)).start()
-        threading.Thread(target=fakeSendTask, args=(userCommand_db,)).start()
-        
-    else:
-        connection = connect('FC:F5:C4:27:09:16')
-        if connection == None:
-            exit()
-
-        threading.Thread(target=receiveTask, args=(connection,)).start()
-        threading.Thread(target=sendTask, args=(connection,userCommand_db,h)).start()
-        threading.Thread(target=saveTask, args=(telemetry_db,)).start()
+    telemetry_db, userCommand_db = open_dbs()
+    threading.Thread(target=receiveTask, args=(connection,)).start()
+    threading.Thread(target=sendTask, args=(connection,userCommand_db)).start()
+    threading.Thread(target=saveTask, args=(telemetry_db,)).start()
 
 
 
         
 # Exécutez le programme principal
 if __name__ == "__main__":
-    #make real time data base folder in read and write mode
-    DBFolder = "real time data base"
-    commandDBName = "userCommand.json"
-    telemetryDBName = "telemetry.json"
-    
-    if not os.path.exists(DBFolder):
-        os.makedirs(DBFolder)
-    
-    #create the dataBase files
-    #reate the userCommand.json file
-    userCommand_db_path = os.path.join(DBFolder, commandDBName)
-    userCommand_db = open(userCommand_db_path, "w+")
-    json.dump([], userCommand_db, indent=4)
-    userCommand_db.flush()
-    userCommand_db.seek(0)
-    
-    #create telemetry.json
-    telemetry_db_path = os.path.join(DBFolder, telemetryDBName)
-    telemetry_db = open(telemetry_db_path, "w+")
-    main(telemetry_db, userCommand_db)
+
+    main()
