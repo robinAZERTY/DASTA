@@ -1,75 +1,56 @@
 #include "vector.hpp"
 
 // count the number of bytes allocated by the class
-unsigned long long Vector::alloc_count = sizeof(Vector::alloc_count);
+unsigned long long Vector::alloc_count = 0;
+unsigned long long Vector::access_count = 0;
+
+#include <iostream>
+
+using namespace std;
 
 Vector::Vector()
 {
-    alloc_count += sizeof(*this);
 }
-
 
 Vector::Vector(uint_fast16_t size)
 {
     this->size = size;
     this->data = new data_type[size];
     alloc_count += sizeof(data_type) * size;
-    alloc_count += sizeof(*this);
-}
-
-bool Vector::free()
-{
-    if (this->data != nullptr)
-    {
-        delete[] this->data;
-        alloc_count -= sizeof(data_type) * this->size;
-        this->data = nullptr;
-        this->size = 0;
-        return true;
-    }
-    return false;
 }
 
 Vector::~Vector()
 {
-    // delete[] this->data;
-    // alloc_count -= sizeof(data_type) * this->size;
-    alloc_count -= sizeof(*this);
+    delete[] this->data;
+    alloc_count -= sizeof(data_type) * this->size;
 }
 
-void Vector::set_zero()
+void Vector::fill(const data_type value)
 {
-    for (int i = 0; i < this->size; i++)
-        this->data[i] = 0;
+    for (uint_fast16_t i = 0; i < this->size; i++)
+        this->data[i] = value;
 }
 
-void cd(Vector &res, Vector &a)
+void cd(Vector &res, const Vector &a)
 {
-    for (int i = 0; i < a.size; i++)
+    for (uint_fast16_t i = 0; i < a.size; i++)
         res.data[i] = a.data[i];
 }
 
-void cd(data_type *res, Vector &a)
+void add(Vector &res, const Vector &a, const Vector &b)
 {
-    for (int i = 0; i < a.size; i++)
-        res[i] = a.data[i];
-}
-
-
-void add(Vector &res, Vector &a, Vector &b)
-{
-    for (int i = 0; i < a.size; i++)
+    for (uint_fast16_t i = 0; i < a.size; i++)
         res.data[i] = a.data[i] + b.data[i];
 }
 
-void sub(Vector &res, Vector &a, Vector &b)
+void sub(Vector &res, const Vector &a, const Vector &b)
 {
-    for (int i = 0; i < a.size; i++)
+    for (uint_fast16_t i = 0; i < a.size; i++)
         res.data[i] = a.data[i] - b.data[i];
 }
 
-void mul(Vector &res, Vector &a, data_type b)
+void mul(Vector &res, const Vector &a, const data_type b)
 {
-    for (int i = 0; i < a.size; i++)
+    for (uint_fast16_t i = 0; i < a.size; i++)
         res.data[i] = a.data[i] * b;
 }

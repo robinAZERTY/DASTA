@@ -21,9 +21,9 @@ class Matrix : public Vector
         bool transposed = false;
 
         // default constructor
-        Matrix();
+        Matrix():Vector(){};
         Matrix(uint_fast8_t rows, uint_fast8_t cols);
-        ~Matrix();
+        Matrix(Matrix &m);
 
         void set_eye();
         void swap_rows(uint_fast8_t i, uint_fast8_t j);
@@ -33,12 +33,10 @@ class Matrix : public Vector
         data_type &operator()(uint_fast8_t row, uint_fast8_t col);
 };
 
-// copy data : res<-a
-void cd(Matrix &res, Matrix &a);
-
 // res<-a*b
 void mul(Matrix &res, Matrix &a, Matrix &b);
 void mul(Vector &res, Matrix &a, Vector &b);
+
 
 // res<-a^(-1) ; a<-a^(-1)
 bool inv(Matrix &res, Matrix &a);

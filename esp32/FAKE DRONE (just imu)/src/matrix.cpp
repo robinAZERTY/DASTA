@@ -1,20 +1,17 @@
 #include "matrix.hpp"
 
-Matrix::Matrix()
-{
-    Vector::alloc_count += sizeof(this->rows) + sizeof(this->cols) + sizeof(this->transposed);
-}
-
 Matrix::Matrix(uint_fast8_t rows, uint_fast8_t cols) : Vector(rows * cols)
 {
     this->rows = rows;
     this->cols = cols;
-    Vector::alloc_count += sizeof(this->rows) + sizeof(this->cols) + sizeof(this->transposed); // this->rows, this->cols, this->transposed
 }
 
-Matrix::~Matrix()
+Matrix::Matrix(Matrix &m) : Vector(m.size)
 {
-    Vector::alloc_count -= sizeof(this->rows) + sizeof(this->cols) + sizeof(this->transposed);
+    this->rows = m.rows;
+    this->cols = m.cols;
+    this->transposed = m.transposed;
+    cd(*this, m);
 }
 
 void Matrix::set_eye()
@@ -51,40 +48,46 @@ void Matrix::transpose()
 
 data_type &Matrix::operator()(uint_fast8_t row, uint_fast8_t col)
 {
+    this->access_count++;
     if (this->transposed)
         return this->data[col * this->rows + row];
     else
         return this->data[row * this->cols + col];
 }
 
+
 void mul(Matrix &res, Matrix &a, Matrix &b)
 {
-    for (uint_fast8_t i = 0; i < a.rows; i++)
-        for (uint_fast8_t j = 0; j < b.cols; j++)
+    uint_fast8_t i, j, k;
+    uint_fast8_t &ai = (a.transposed) ? k : i, &ak = (a.transposed) ? i : k, ac = (a.transposed) ? a.rows : a.cols;
+    uint_fast8_t &bk = (b.transposed) ? j : k, &bj = (b.transposed) ? k : j, bc = (b.transposed) ? b.rows : b.cols;
+    uint_fast8_t &ri = (res.transposed) ? j : i, &rj = (res.transposed) ? i : j, rc = (res.transposed) ? res.rows : res.cols;
+
+    for (i = 0; i < a.rows; i++)
+        for (j = 0; j < b.cols; j++)
         {
             data_type sum = 0;
-            for (uint_fast8_t k = 0; k < a.cols; k++)
-                sum += a(i, k) * b(k, j);
-            res(i, j) = sum;
+            for (k = 0; k < a.cols; k++)
+                sum += a.data[ai * ac + ak] * b.data[bk * bc + bj];
+
+            res.data[ri * rc + rj] = sum;
         }
 }
 
 void mul(Vector &res, Matrix &a, Vector &b)
 {
-    for (uint_fast8_t i = 0; i < a.rows; i++)
+    uint_fast8_t i, k;
+    uint_fast8_t &ai = (a.transposed) ? k : i, &ak = (a.transposed) ? i : k, ac = (a.transposed) ? a.rows : a.cols;
+    
+    for (i = 0; i < a.rows; i++)
     {
         data_type sum = 0;
-        for (uint_fast16_t k = 0; k < a.cols; k++)
-            sum += a(i, k) * b.data[k];
+        for (k = 0; k < a.cols; k++)
+        {
+            sum += a.data[ai * ac + ak] * b.data[k];
+        }
         res.data[i] = sum;
     }
-}
-
-void cd(Matrix &res, Matrix &a)
-{
-    for (uint_fast8_t i = 0; i < res.rows; i++)
-        for (uint_fast8_t j = 0; j < res.cols; j++)
-            res(i, j) = a(i, j);
 }
 
 void refd(Matrix &res, Matrix &a)
@@ -95,6 +98,7 @@ void refd(Matrix &res, Matrix &a)
     res.size = a.size;
     res.transposed = a.transposed;
 }
+
 
 bool inv(Matrix &res, Matrix &a)
 {
@@ -107,16 +111,20 @@ bool inv(Matrix &res, Matrix &a)
         return false; // Non-square matrices cannot be inverted
 
     res.set_eye(); // Initialize 'res' as the identity matrix
-
-    for (uint_fast8_t i = 0; i < n; i++)
+    
+    uint_fast8_t i, k, j;
+    uint_fast8_t &ai = (a.transposed) ? k : i, &ak = (a.transposed) ? i : k, &aj = (a.transposed) ? j : k, ac = (a.transposed) ? a.rows : a.cols;
+    uint_fast8_t &ri = (res.transposed) ? j : i, &rj = (res.transposed) ? i : j, &rk = (res.transposed) ? k : j, rc = (res.transposed) ? res.rows : res.cols;
+    
+    for (i = 0; i < n; i++)
     {
         // Find the maximum pivot (maximum in absolute value)
         uint_fast8_t pivotRow = i;
-        data_type maxPivot = fabs(a(i, i));
+        data_type maxPivot = fabs(a.data[ai * ac + ai]);
 
-        for (uint_fast8_t k = i + 1; k < n; k++)
+        for (k = i + 1; k < n; k++)
         {
-            data_type absVal = fabs(a(k, i));
+            data_type absVal = fabs(a.data[ak * ac + ai]);
             if (absVal > maxPivot)
             {
                 maxPivot = absVal;
@@ -134,22 +142,23 @@ bool inv(Matrix &res, Matrix &a)
 
         // Make the diagonal element 1
         data_type pivot = 1 / a(i, i);
-        for (uint_fast8_t j = 0; j < n; j++)
+        for (j = 0; j < n; j++)
         {
-            a(i, j) *= pivot;
-            res(i, j) *= pivot;
+            a.data[ai * ac + aj] *= pivot;
+            res.data[ri * rc + rj] *= pivot;
         }
 
         // Eliminate non-zero values below and above the pivot
-        for (uint_fast8_t j = 0; j < n; j++)
+        for (j = 0; j < n; j++)
         {
             if (j != i)
             {
-                data_type factor = a(j, i);
-                for (uint_fast8_t k = 0; k < n; k++)
+                data_type factor = a.data[aj * ac + ai];
+                for (k = 0; k < n; k++)
                 {
-                    a(j, k) -= factor * a(i, k);
-                    res(j, k) -= factor * res(i, k);
+                    a.data[aj * ac + ak] -= factor * a.data[ai * ac + ak];
+                    res.data[rj * rc + rk] -= factor * res.data[ri * rc + rk];
+                    a.data[aj * ac + ak] -= factor * a.data[ai * ac + ak];
                 }
             }
         }
