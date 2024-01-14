@@ -82,10 +82,6 @@ void printTask(void *pvParameters)
       Serial.print(vec2str(dasta.sensors.acc));
       Serial.print("\tgyro: ");
       Serial.print(vec2str(dasta.sensors.gyro));
-      Serial.print("\tb_acc: ");
-      Serial.print(vec2str(dasta.sensors.acc_bias));
-      Serial.print("\tg: ");
-      Serial.print(String(dasta.estimator.ekf->x->data[34]));
       Serial.println();
     }
     delay(1);

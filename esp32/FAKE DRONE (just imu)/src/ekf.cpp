@@ -3,7 +3,7 @@
 Matrix *Ekf::tmp1;
 Matrix *Ekf::tmp2;
 Matrix *Ekf::Min;
-Matrix Ekf::refP = Matrix();
+// Matrix Ekf::refP = Matrix();
 Vector *Ekf::Vin;
 
 Ekf::Ekf(Matrix_f2 f, Matrix_f1 h, int x_dim, int z_dim, int u_dim, Matrix_f2 Fx, Matrix_f2 Fu, Matrix_f1 H)
@@ -191,9 +191,9 @@ void Ekf::update()
     cd(*P, *tmp2);
 
     // P<- (P+P')/2 (symétrisation pour éviter les erreurs d'arrondi)
-    refd(refP, *P);
-    refP.transpose();
-    add(*P, *P, refP);
+    refd(*refP, *P);
+    refP->transpose();
+    add(*P, *P, *refP);
     mul(*P, *P, 0.5);
 }
 

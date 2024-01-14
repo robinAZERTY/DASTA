@@ -4,14 +4,6 @@
 unsigned long long Vector::alloc_count = 0;
 unsigned long long Vector::access_count = 0;
 
-#include <iostream>
-
-using namespace std;
-
-Vector::Vector()
-{
-}
-
 Vector::Vector(uint_fast16_t size)
 {
     this->size = size;
@@ -35,6 +27,12 @@ void cd(Vector &res, const Vector &a)
 {
     for (uint_fast16_t i = 0; i < a.size; i++)
         res.data[i] = a.data[i];
+}
+
+void cd(data_type *res, const Vector &a)
+{
+    for (uint_fast16_t i = 0; i < a.size; i++)
+        res[i] = a.data[i];
 }
 
 void add(Vector &res, const Vector &a, const Vector &b)

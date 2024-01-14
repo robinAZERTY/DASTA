@@ -3,9 +3,9 @@
 Dasta::Dasta()
 {
     // allocate and link the matrices and vectors
-    (sensors.acc_bias = Vector(3)).set_zero();
-    (sensors.gyro_bias = Vector(3)).set_zero();
-    (sensors.mag_bias = Vector(3)).set_zero();
+    (sensors.acc_bias = Vector(3)).fill(0);
+    (sensors.gyro_bias = Vector(3)).fill(0);
+    (sensors.mag_bias = Vector(3)).fill(0);
 
     (sensors.acc_scale = Matrix(3, 3)).set_eye();
     (sensors.gyro_scale = Matrix(3, 3)).set_eye();
@@ -31,10 +31,13 @@ Dasta::Dasta()
     communication.receive_stream.include("gyro_scale", sensors.gyro_scale);
     communication.receive_stream.include("mag_scale", sensors.mag_scale);
 
-    cd(estimator.ekf->x->data + 10,sensors.gyro_bias);
-    cd(estimator.ekf->x->data + 13,sensors.acc_bias);
-    sensors.gyro_bias.data = estimator.ekf->x->data + 10;
-    sensors.acc_bias.data = estimator.ekf->x->data + 13;
-    sensors.gyro_scale.data = estimator.ekf->x->data + 16;
-    sensors.acc_scale.data = estimator.ekf->x->data + 25;
+    // cd(estimator.ekf->x->data + 10,sensors.gyro_bias);
+    // cd(estimator.ekf->x->data + 13,sensors.acc_bias);
+    // sensors.gyro_bias.data = estimator.ekf->x->data + 10;
+    // sensors.acc_bias.data = estimator.ekf->x->data + 13;
+    // sensors.gyro_scale.data = estimator.ekf->x->data + 16;
+    // sensors.acc_scale.data = estimator.ekf->x->data + 25;
+
+
+
 }

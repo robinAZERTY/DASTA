@@ -30,7 +30,7 @@ protected:
 
 public:
     static Matrix *tmp1, *tmp2, *Min;
-    static Matrix refP;
+    static Matrix *refP;
     static Vector *Vin;
     Ekf(Matrix_f2 f, Matrix_f1 h, int x_dim, int z_dim, int u_dim, Matrix_f2 Fx = nullptr, Matrix_f2 Fu = nullptr, Matrix_f1 H = nullptr);
     ~Ekf();
@@ -43,7 +43,5 @@ public:
     Matrix *R, *P, *Q;
     void update();
 };
-#ifndef ARDUINO
-#include "ekf.cpp"
-#endif
+
 #endif

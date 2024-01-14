@@ -23,15 +23,15 @@ void SensorPreProcessing::init()
             ;
     }
     //override default compensation parameters
-    // imu.setAccelCalX(0.0, 1.0);
-    // imu.setAccelCalY(0.0, 1.0);
-    // imu.setAccelCalZ(0.0, 1.0);
-    // imu.setGyroBiasX_rads(0.0);
-    // imu.setGyroBiasY_rads(0.0);
-    // imu.setGyroBiasZ_rads(0.0);
-    // imu.setMagCalX(0.0, 1.0);
-    // imu.setMagCalY(0.0, 1.0);
-    // imu.setMagCalZ(0.0, 1.0);
+    imu.setAccelCalX(0.0, 1.0);
+    imu.setAccelCalY(0.0, 1.0);
+    imu.setAccelCalZ(0.0, 1.0);
+    imu.setGyroBiasX_rads(0.0);
+    imu.setGyroBiasY_rads(0.0);
+    imu.setGyroBiasZ_rads(0.0);
+    imu.setMagCalX(0.0, 1.0);
+    imu.setMagCalY(0.0, 1.0);
+    imu.setMagCalZ(0.0, 1.0);
 
 
 
@@ -59,7 +59,9 @@ void SensorPreProcessing::init()
 
 void SensorPreProcessing::readSensors()
 {
+    time = millis();
     imu.readSensor();
+
     acc(0) = imu.getAccelX_mss();
     acc(1) = imu.getAccelY_mss();
     acc(2) = imu.getAccelZ_mss();
@@ -73,7 +75,6 @@ void SensorPreProcessing::readSensors()
     mag(2) = imu.getMagZ_uT();
     
     imu_compensated = false;
-    time = millis();
 }
 
 void SensorPreProcessing::compensateIMU()
