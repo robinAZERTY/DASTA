@@ -1,14 +1,15 @@
 #include "Communication.hpp"
+#include "CommunicationConfig.hpp"
 
 Communication::Communication()
 {
-
     send_stream.name = SEND_STREAM_NAME;
     receive_stream.name = RECEIVE_STREAM_NAME;
 
     send_stream.end_line = END_LINE;
     receive_stream.end_line = END_LINE;
 }
+
 
 String BL_stream::header()
 {
@@ -95,12 +96,12 @@ bool BL_stream::include(const char *name, uint8_t *data, char data_type, uint16_
     return true;
 }
 
-bool BL_stream::include(const char *name, Vector &vec)
+bool BL_stream::include(const char *name, Vector &vec, bool stream)
 {
     return this->include(name, (uint8_t *)vec.data, VECTOR_KEY, vec.size * sizeof(data_type));
 }
 
-bool BL_stream::include(const char *name, Matrix &mat)
+bool BL_stream::include(const char *name, Matrix &mat, bool stream)
 {
     Serial.println("mat size: " + String(mat.rows) + " " + String(mat.cols) + " " + String(mat.size));
     if (!this->include(name, (uint8_t *)mat.data, MATRIX_KEY, mat.size * sizeof(data_type)))
@@ -168,7 +169,10 @@ int Communication::send_header(BL_stream *stream)
 }
 
 int Communication::send()
-{
+{   
+    if (!this->running_send_stream)
+        return 0;
+        
     // write the stream_register to the serial
     uint32_t rr = this->send_stream._register;
     if (SerialBT.write((uint8_t *)&rr, sizeof(rr)) != sizeof(rr))

@@ -3,6 +3,7 @@
 
 #include <MPU9250.h>
 #include "matrix.hpp"
+#include "Cam.hpp"
 
 class SensorPreProcessing
 {
@@ -16,6 +17,7 @@ public:
     void compensateIMU();
     const unsigned long long &getTime() { return time; };
     static MPU9250 imu;
+    Cam cam1, cam2;
     Vector acc, gyro, mag;
 
     Vector acc_bias, gyro_bias, mag_bias;    // bias vector (3x1)

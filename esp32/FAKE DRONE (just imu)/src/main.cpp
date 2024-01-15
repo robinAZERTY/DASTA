@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include "Dasta.hpp"
 
 Dasta dasta;
@@ -37,6 +36,7 @@ void communicationTask(void *pvParameters)
       last_time = now;
       dasta.communication.send();
       dasta.communication.receive();
+      dasta.runDecisionOnUserEvent();
     }
     if (!dasta.communication.SerialBT.connected(100))
     {

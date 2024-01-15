@@ -2,6 +2,7 @@
 #define CAM_HPP
 
 #include "quaternion.hpp"
+#include "led.hpp"
 
 class Cam
 {
@@ -11,8 +12,10 @@ public:
 
     Quaternion orientation;
     Vector position;
+    data_type k;// constant in pixel*m/m
 
-    Vector
+    Led *leds;
+    uint_fast8_t led_num;
 };
 
 #endif // CAM_HPP

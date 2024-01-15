@@ -1,5 +1,8 @@
 #include "Dasta.hpp"
 
+SensorPreProcessing Dasta::sensors;
+Actuators Dasta::actuators;
+
 Dasta::Dasta()
 {
     // allocate and link the matrices and vectors
@@ -15,29 +18,51 @@ Dasta::Dasta()
     sensors.acc.data = estimator.ekf->u->data + 3;
     sensors.mag = Vector(3);
 
-    communication.send_stream.include("time", (uint8_t *)&sensors.getTime(), UNSIGNED_LONG_LONG_KEY, sizeof(sensors.getTime())); 
-    communication.send_stream.include("acc", sensors.acc);
-    communication.send_stream.include("gyro", sensors.gyro);
-    communication.send_stream.include("mag", sensors.mag);
-    communication.send_stream.include("position", estimator.position);
-    communication.send_stream.include("velocity", estimator.velocity);
-    communication.send_stream.include("orientation", estimator.orientation);
-    // communication.send_stream.include("Covariance", *estimator.ekf->P);
+    configCommunication();
+}
 
-    communication.receive_stream.include("acc_bias", sensors.acc_bias);
-    communication.receive_stream.include("gyro_bias", sensors.gyro_bias);
-    communication.receive_stream.include("mag_bias", sensors.mag_bias);
-    communication.receive_stream.include("acc_scale", sensors.acc_scale);
-    communication.receive_stream.include("gyro_scale", sensors.gyro_scale);
-    communication.receive_stream.include("mag_scale", sensors.mag_scale);
+void Dasta::runDecisionOnUserEvent()
+{
+    switch (decisionnal_unit.user_event)
+    {
+    case UserEvent::None:
+        break;
+    case UserEvent::StartStateEstimate:
+        estimator.running = true;
+        break;
+    case UserEvent::StopStateEstimate:
+        estimator.running = false;
+        break;
+    case UserEvent::StartStream:
+        communication.running_send_stream = true;
+        break;
+    case UserEvent::StopStream:
+        communication.running_send_stream = false;
+        break;
+    case UserEvent::EnableStateEstimateStream:
+        communication.send_stream.enable("position");
+        communication.send_stream.enable("velocity");
+        communication.send_stream.enable("orientation");
+        break;
+    case UserEvent::DisableStateEstimateStream:
+        communication.send_stream.disable("position");
+        communication.send_stream.disable("velocity");
+        communication.send_stream.disable("orientation");
+        break;
+    case UserEvent::EnableSensorStream:
+        communication.send_stream.enable("acc");
+        communication.send_stream.enable("gyro");
+        communication.send_stream.enable("mag");
+        break;
+    case UserEvent::DisableSensorStream:
+        communication.send_stream.disable("acc");
+        communication.send_stream.disable("gyro");
+        communication.send_stream.disable("mag");
+        break;
+    default:
+        break;
+    }
 
-    // cd(estimator.ekf->x->data + 10,sensors.gyro_bias);
-    // cd(estimator.ekf->x->data + 13,sensors.acc_bias);
-    // sensors.gyro_bias.data = estimator.ekf->x->data + 10;
-    // sensors.acc_bias.data = estimator.ekf->x->data + 13;
-    // sensors.gyro_scale.data = estimator.ekf->x->data + 16;
-    // sensors.acc_scale.data = estimator.ekf->x->data + 25;
-
-
+    decisionnal_unit.user_event = UserEvent::None;
 
 }

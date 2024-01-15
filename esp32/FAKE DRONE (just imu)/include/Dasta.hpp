@@ -8,17 +8,21 @@ cette classe regroupe toutes les fonctionnaités necessaires au fonctionnement d
 #include "StateEstimate.hpp"
 #include "Communication.hpp"
 #include "Actuators.hpp"
+#include "DecisionnalUnit.hpp"
 
 class Dasta
 {
+    private:
+     void configCommunication();
 public:
     Dasta();
     ~Dasta(){};
-    SensorPreProcessing sensors;
+    void runDecisionOnUserEvent();
+    static SensorPreProcessing sensors;
     StateEstimate estimator;
     Communication communication; 
     static Actuators actuators;
-
+    DecisionnalUnit decisionnal_unit;
 };
 
 #endif // DASTA_HPP

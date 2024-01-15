@@ -3,22 +3,33 @@
 Matrix *Ekf::tmp1;
 Matrix *Ekf::tmp2;
 Matrix *Ekf::Min;
-// Matrix Ekf::refP = Matrix();
+// Matrix Ekf::refP();
 Vector *Ekf::Vin;
 
-Ekf::Ekf(Matrix_f2 f, Matrix_f1 h, int x_dim, int z_dim, int u_dim, Matrix_f2 Fx, Matrix_f2 Fu, Matrix_f1 H)
+Ekf::Ekf(Matrix_f2 f, Matrix_f1 h[], uint_fast8_t x_dim, uint_fast8_t z_dim[], uint_fast8_t u_dim, Matrix_f2 Fx, Matrix_f2 Fu, Matrix_f1 H[], uint_fast8_t z_num)
 {
     this->x_dim = x_dim;
     this->z_dim = z_dim;
     this->u_dim = u_dim;
 
-    this->h_val = new Vector(z_dim);
+    this->h_val = new Vector *[z_num];
 
     this->u = new Vector(u_dim);
     this->utmp = new Vector(u_dim);
-    this->z = new Vector(z_dim);
-    this->R = new Matrix(z_dim, z_dim);
-    this->R->set_eye();
+    this->z = new Vector *[z_num];
+
+    this->R = new Matrix *[z_num];
+
+    uint_fast8_t max_z_dim = 0;
+    for (uint_fast8_t i = 0; i < z_num; i++)
+    {
+        this->z[i] = new Vector(z_dim[i]);
+        this->h_val[i] = new Vector(z_dim[i]);
+        this->R[i] = new Matrix(z_dim[i], z_dim[i]);
+        this->R[i]->set_eye();
+        if (z_dim[i] > max_z_dim)
+            max_z_dim = z_dim[i];
+    }
 
     this->x = new Vector(x_dim);
 
@@ -35,16 +46,16 @@ Ekf::Ekf(Matrix_f2 f, Matrix_f1 h, int x_dim, int z_dim, int u_dim, Matrix_f2 Fx
     this->f = f;
     this->Fx = Fx;
     this->Fu = Fu;
-    this->K = new Matrix(x_dim, z_dim);
-    this->S = new Matrix(z_dim, z_dim);
+    this->K = new Matrix(x_dim, max_z_dim);
+    this->S = new Matrix(max_z_dim, max_z_dim);
 
     this->Fx_val = new Matrix(x_dim, x_dim);
     this->Fu_val = new Matrix(x_dim, u_dim);
-    this->H_val = new Matrix(z_dim, x_dim);
+    this->H_val = new Matrix(max_z_dim, x_dim);
 
-    this->y = new Vector(z_dim);
+    this->y = new Vector(max_z_dim);
 
-    int max_dim = (x_dim > z_dim) ? x_dim : z_dim;
+    int max_dim = (x_dim > max_z_dim) ? x_dim : max_z_dim;
     max_dim = (max_dim > u_dim) ? max_dim : u_dim;
 
     if (Ekf::tmp1 != nullptr)
@@ -67,6 +78,12 @@ Ekf::Ekf(Matrix_f2 f, Matrix_f1 h, int x_dim, int z_dim, int u_dim, Matrix_f2 Fx
 Ekf::~Ekf()
 {
     delete this->u;
+    for (uint_fast8_t i = 0; i < z_number; i++)
+    {
+        delete this->z[i];
+        delete this->h_val[i];
+        delete this->R[i];
+    }
     delete this->z;
     delete this->R;
     delete this->x;
@@ -138,42 +155,57 @@ void Ekf::predict()
     add(*P, *P, *tmp2);
 }
 
-void Ekf::update()
+void Ekf::update(const uint8_t iz)
 {
     // y<- z-h(x)
-    Vin = h_val;
-    h(*x);
-    sub(*y, *z, *h_val);
+    Vin = h_val[iz];
+    h[iz](*x);
+    y->size = z_dim[iz];
+    sub(*y, *z[iz], *h_val[iz]);
 
+    H_val->cols = x_dim;
+    H_val->rows = z_dim[iz];
+    
+    bool use_finite_diff = true;
     if (H != nullptr)
+        if (H[iz] != nullptr)
+            use_finite_diff = false;
+
+            
+    if (!use_finite_diff)
     {
         Min = H_val;
-        H(*x);
+        H[iz](*x);
     }
     else
     {
         uint16_t tmp2_size = tmp2->size;
-        tmp2->size = z_dim;
-        finite_diff_H();
+        tmp2->size = z_dim[iz];
+        finite_diff_H(iz);
         tmp2->size = tmp2_size;
     }
 
     // S<- H*P*H'+R
     tmp1->cols = x_dim;
-    tmp1->rows = z_dim;
+    tmp1->rows = z_dim[iz];
     mul(*tmp1, *H_val, *P);
     H_val->transpose();
+    S->cols = z_dim[iz];
+    S->rows = z_dim[iz];
     mul(*S, *tmp1, *H_val);
-    add(*S, *S, *R);
+    add(*S, *S, *(R[iz]));
 
     // K<- P*H'*S^-1
-    tmp1->cols = z_dim;
+    tmp1->cols = z_dim[iz];
     tmp1->rows = x_dim;
     mul(*tmp1, *P, *H_val);
     H_val->transpose();
-    tmp2->cols = z_dim;
-    tmp2->rows = z_dim;
+
+    tmp2->cols = z_dim[iz];
+    tmp2->rows = z_dim[iz];
     inv(*tmp2, *S);
+    K->rows = x_dim;
+    K->cols = z_dim[iz];
     mul(*K, *tmp1, *tmp2);
 
     // x<- x+K*y
@@ -191,10 +223,10 @@ void Ekf::update()
     cd(*P, *tmp2);
 
     // P<- (P+P')/2 (symétrisation pour éviter les erreurs d'arrondi)
-    refd(*refP, *P);
-    refP->transpose();
-    add(*P, *P, *refP);
-    mul(*P, *P, 0.5);
+    // refd(refP, *P);
+    // refP.transpose();
+    // add(*P, *P, refP);
+    // mul(*P, *P, 0.5);
 }
 
 void Ekf::finite_diff_Fx(const uint8_t i, const data_type eps)
@@ -229,19 +261,19 @@ void Ekf::finite_diff_Fu(const uint8_t i, const data_type eps)
         Fu_val->data[j * Fu_val->cols + i] = tmp1->data[j];
 }
 
-void Ekf::finite_diff_H(const uint8_t i, const data_type eps)
+void Ekf::finite_diff_H(const uint8_t iz, const uint8_t i, const data_type eps)
 {
     cd(*tmp1, *x);
 
     tmp1->data[i] += eps;
 
     Vin = tmp2;
-    h(*tmp1);
+    h[iz](*tmp1);
 
-    sub(*tmp2, *tmp2, *h_val);
+    sub(*tmp2, *tmp2, *(h_val[iz]));
     mul(*tmp2, *tmp2, 1 / eps);
 
-    for (uint_fast8_t j = 0; j < z_dim; j++)
+    for (uint_fast8_t j = 0; j < z_dim[iz]; j++)
         H_val->data[j * H_val->cols + i] = tmp2->data[j];
 }
 
@@ -257,8 +289,8 @@ void Ekf::finite_diff_Fu()
         finite_diff_Fu(i);
 }
 
-void Ekf::finite_diff_H()
+void Ekf::finite_diff_H(const uint8_t iz)
 {
     for (uint_fast8_t i = 0; i < x_dim; i++)
-        finite_diff_H(i);
+        finite_diff_H(iz, i);
 }

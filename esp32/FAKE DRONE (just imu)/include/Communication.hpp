@@ -1,12 +1,7 @@
-/*
- */
-
 #ifndef COMMUNICATION_HPP
 #define COMMUNICATION_HPP
 #include "Matrix.hpp"
 #include "BluetoothSerial.h"
-#include "CommunicationConfig.hpp"
-
 
 
 struct BL_stream
@@ -31,8 +26,8 @@ public:
     uint16_t *get_data_size() { return this->data_size; };
     uint32_t get_total_data_size() { return this->total_data_size; };
     bool include(const char *name, uint8_t *data, char data_type, uint16_t data_size, bool stream = true);
-    bool include(const char *name, Vector &vec);
-    bool include(const char *name, Matrix &mat);
+    bool include(const char *name, Vector &vec, bool stream = true);
+    bool include(const char *name, Matrix &mat, bool stream = true);
     bool enable(const char *name);
     bool disable(const char *name);
     String header();
@@ -45,6 +40,7 @@ private:
     uint32_t receive_stream_expected_length = 0;
 
 public:
+    bool running_send_stream = false;
     String device_name = "ESP32-Bluetooth";
     BL_stream send_stream, receive_stream;
     BluetoothSerial SerialBT;

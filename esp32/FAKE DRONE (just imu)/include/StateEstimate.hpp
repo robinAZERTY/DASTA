@@ -10,6 +10,7 @@ private:
     float last_time_extero=-1;
 
 public:
+    bool running = false;
     StateEstimate();
     ~StateEstimate();
     void run(const float time);

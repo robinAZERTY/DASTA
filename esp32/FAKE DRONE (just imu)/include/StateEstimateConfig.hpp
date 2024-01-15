@@ -46,8 +46,14 @@ led2_pos(xyz)                   m           22:24
 #define Vout (*Ekf::Vin)
 #define Min (*Ekf::Min)
 #define dt (StateEstimate::dt_proprio) // période mesuré d'échantillonnage des capteurs proprio
-#define l1p (Dasta::Actuators::led1.position)
-#define l2p (Dasta::Actuators::led2.position)
+#define l1p (Dasta::actuators.led1.position)
+#define l2p (Dasta::actuators.led2.position)
+#define cam1_p (Dasta::sensors.cam1.position)
+#define cam1_q (Dasta::sensors.cam1.orientation)
+#define cam1_k (Dasta::sensors.cam1.k)
+#define cam2_p (Dasta::sensors.cam2.position)
+#define cam2_q (Dasta::sensors.cam2.orientation)
+#define cam2_k (Dasta::sensors.cam2.k)
 
 #define GYRO_VAR 0.001
 #define ACC_VAR 0.01
@@ -151,6 +157,61 @@ void h(const Vector &x)
         Z_predict = [l1c1(1); l1c1(2); l2c1(1); l2c1(2); l1c2(1); l1c2(2); l2c2(1); l2c2(2)];
     end
  */
+
+    Vector l1c1, l2c1, l1c2, l2c2; // to store results (the position of a led in the image)
+    l1c1.size = 2;
+    l1c1.data = Vout.data;
+    l2c1.size = 2;
+    l2c1.data = Vout.data + 2;
+    l1c2.size = 2;
+    l1c2.data = Vout.data + 4;
+    l2c2.size = 2;
+    l2c2.data = Vout.data + 6;
+
+    Quaternion q;
+    q.data = x.data + 6;
+
+    Vector p;
+    p.size = 3;
+    p.data = x.data;
+
+    Vector l; // to compute the position of a led in the world frame using ekf->tmp1 as temporary storage
+    l.size = 3;
+    l.data = Ekf::tmp1->data;
+
+    rotate(l, q, l1p);
+    add(l, l, p); // position of led1 in world frame
+
+    Vector lc; // to compute the position of a led in a camera frame using ekf->tmp1 as temporary storage
+    lc.size = 3;
+    lc.data = Ekf::tmp1->data + 3;
+
+    cam1_q.conjugate();
+    cam2_q.conjugate();
+
+    sub(lc, l, cam1_p); // position of led1 in cam1 frame
+    rotate(lc, cam1_q, lc);
+    l1c1.data[0] = lc.data[0] * cam1_k / lc.data[2];
+    l1c1.data[1] = lc.data[1] * cam1_k / lc.data[2];
+
+    sub(lc, l, cam2_p); // position of led1 in cam2 frame
+    rotate(lc, cam2_q, lc);
+    l1c2.data[0] = lc.data[0] * cam2_k / lc.data[2];
+    l1c2.data[1] = lc.data[1] * cam2_k / lc.data[2];
+
+    rotate(l, q, l2p); // position of led2 in world frame
+
+    sub(lc, l, cam1_p); // position of led2 in cam1 frame
+    rotate(lc, cam1_q, lc);
+    l2c1.data[0] = lc.data[0] * cam1_k / lc.data[2];
+    l2c1.data[1] = lc.data[1] * cam1_k / lc.data[2];
+
+    sub(lc, l, cam2_p); // position of led2 in cam2 frame
+    rotate(lc, cam2_q, lc);
+    l2c2.data[0] = lc.data[0] * cam2_k / lc.data[2];
+
+    cam1_q.conjugate();
+    cam2_q.conjugate();
 }
 
 // jacobienne de f par rapport à x
@@ -246,50 +307,70 @@ void Fu(const Vector &x, const Vector &u)
     Min.rows = U_DIM;
     Min.fill(0);
 
-    Min.data[3 * Min.cols + 3];
+    Min.data[3 * Min.cols + 3] = dt * (x.data[6] * x.data[6] + x.data[7] * x.data[7] - x.data[8] * x.data[8] - x.data[9] * x.data[9]);
+    Min.data[3 * Min.cols + 4] = -2 * dt * (x.data[6] * x.data[9] - x.data[7] * x.data[8]);
+    Min.data[3 * Min.cols + 5] = 2 * dt * (x.data[6] * x.data[8] + x.data[7] * x.data[9]);
+
+    Min.data[4 * Min.cols + 3] = 2 * dt * (x.data[6] * x.data[9] + x.data[7] * x.data[8]);
+    Min.data[4 * Min.cols + 4] = dt * (x.data[6] * x.data[6] - x.data[7] * x.data[7] + x.data[8] * x.data[8] - x.data[9] * x.data[9]);
+    Min.data[4 * Min.cols + 5] = -2 * dt * (x.data[6] * x.data[8] - x.data[7] * x.data[9]);
+
+    Min.data[5 * Min.cols + 3] = -2 * dt * (x.data[6] * x.data[8] - x.data[7] * x.data[9]);
+    Min.data[5 * Min.cols + 4] = 2 * dt * (x.data[6] * x.data[8] + x.data[7] * x.data[9]);
+    Min.data[5 * Min.cols + 5] = dt * (x.data[6] * x.data[6] - x.data[7] * x.data[7] - x.data[8] * x.data[8] + x.data[9] * x.data[9]);
+
+    Min.data[6 * Min.cols + 0] = -0.5 * dt * x.data[8];
+    Min.data[6 * Min.cols + 1] = -0.5 * dt * x.data[9];
+    Min.data[6 * Min.cols + 2] = -0.5 * dt * x.data[10];
+
+    Min.data[7 * Min.cols + 0] = 0.5 * dt * x.data[7];
+    Min.data[7 * Min.cols + 1] = -0.5 * dt * x.data[10];
+    Min.data[7 * Min.cols + 2] = 0.5 * dt * x.data[9];
+
+    Min.data[8 * Min.cols + 0] = 0.5 * dt * x.data[10];
+    Min.data[8 * Min.cols + 1] = 0.5 * dt * x.data[7];
+    Min.data[8 * Min.cols + 2] = -0.5 * dt * x.data[8];
+
+    Min.data[9 * Min.cols + 0] = -0.5 * dt * x.data[9];
+    Min.data[9 * Min.cols + 1] = 0.5 * dt * x.data[8];
+    Min.data[9 * Min.cols + 2] = 0.5 * dt * x.data[7];
 }
 
-// jacobienne de h par rapport à x
-void H(const Vector &x);
-
-
-void initXPRQ(Vector &x, Matrix &P, Matrix &R, Matrix &Q)
+void initEKF(Ekf *ekf)
 {
-    x(0) = 0; // x
-    x(1) = 0; // y
-    x(2) = 0; // z
-    x(3) = 0; // vx
-    x(4) = 0; // vy
-    x(5) = 0; // vz
-    x(6) = 1; // qw
-    x(7) = 0; // qx
-    x(8) = 0; // qy
-    x(9) = 0; // qz
+    Matrix_f1 *hh = new Matrix_f1[1];
+    hh[0] = *h;
+    uint_fast8_t *zz_dim = new uint_fast8_t[1];
+    zz_dim[0] = Z_DIM;
+    ekf = new Ekf(f, hh, X_DIM, zz_dim, U_DIM, Fx, Fu, nullptr, 1);
 
-    P.fill(0);
-    P(0, 0) = INIT_POS_VAR;
-    P(1, 1) = INIT_POS_VAR;
-    P(2, 2) = INIT_POS_VAR;
-    P(3, 3) = INIT_VEL_VAR;
-    P(4, 4) = INIT_VEL_VAR;
-    P(5, 5) = INIT_VEL_VAR;
-    P(6, 6) = INIT_ATT_VAR;
-    P(7, 7) = INIT_ATT_VAR;
-    P(8, 8) = INIT_ATT_VAR;
-    P(9, 9) = INIT_ATT_VAR;
+    ekf->x->fill(0);
+    ekf->x->data[6] = 1; // qw
 
-    R.fill(0);
-    R(0, 0) = EXT_VAR;
-    R(1, 1) = EXT_VAR;
-    R(2, 2) = EXT_VAR;
+    ekf->P->fill(0);
+    ekf->P->operator()(0, 0) = INIT_POS_VAR;
+    ekf->P->operator()(1, 1) = INIT_POS_VAR;
+    ekf->P->operator()(2, 2) = INIT_POS_VAR;
+    ekf->P->operator()(3, 3) = INIT_VEL_VAR;
+    ekf->P->operator()(4, 4) = INIT_VEL_VAR;
+    ekf->P->operator()(5, 5) = INIT_VEL_VAR;
+    ekf->P->operator()(6, 6) = INIT_ATT_VAR;
+    ekf->P->operator()(7, 7) = INIT_ATT_VAR;
+    ekf->P->operator()(8, 8) = INIT_ATT_VAR;
+    ekf->P->operator()(9, 9) = INIT_ATT_VAR;
 
-    Q.fill(0);
-    Q(0, 0) = GYRO_VAR;
-    Q(1, 1) = GYRO_VAR;
-    Q(2, 2) = GYRO_VAR;
-    Q(3, 3) = ACC_VAR;
-    Q(4, 4) = ACC_VAR;
-    Q(5, 5) = ACC_VAR;
+    ekf->R[0]->fill(0);
+    ekf->R[0]->operator()(0, 0) = EXT_VAR;
+    ekf->R[0]->operator()(1, 1) = EXT_VAR;
+    ekf->R[0]->operator()(2, 2) = EXT_VAR;
+
+    ekf->Q->fill(0);
+    ekf->Q->operator()(0, 0) = GYRO_VAR;
+    ekf->Q->operator()(1, 1) = GYRO_VAR;
+    ekf->Q->operator()(2, 2) = GYRO_VAR;
+    ekf->Q->operator()(3, 3) = ACC_VAR;
+    ekf->Q->operator()(4, 4) = ACC_VAR;
+    ekf->Q->operator()(5, 5) = ACC_VAR;
 }
 
 #endif // STATEESTIMATECONFIG_HPP
