@@ -3,8 +3,8 @@
 
 #include "matrix.hpp"
 
-typedef void (*Matrix_f2)(const Vector &, const Vector &);
-typedef void (*Matrix_f1)(const Vector &);
+typedef void (*Matrix_f2)(const Vector &, const Vector &, const Vector &);
+typedef void (*Matrix_f1)(const Vector &, const Vector &);
 
 class Ekf
 {
@@ -36,7 +36,7 @@ public:
     Ekf(Matrix_f2 f, Matrix_f1 h[], uint_fast8_t x_dim, uint_fast8_t z_dim[], uint_fast8_t u_dim, Matrix_f2 Fx = nullptr, Matrix_f2 Fu = nullptr, Matrix_f1 H[] = nullptr, uint_fast8_t z_num = 1);
     ~Ekf();
 
-    Vector *u, *x; // vectors
+    Vector *u, *x, *c; // vectors
     void predict();
 
     Vector **z, **h_val; // vector

@@ -1,9 +1,8 @@
-#include "ekf.hpp"
+#include "Ekf.hpp"
 
 Matrix *Ekf::tmp1;
 Matrix *Ekf::tmp2;
 Matrix *Ekf::Min;
-// Matrix Ekf::refP();
 Vector *Ekf::Vin;
 
 Ekf::Ekf(Matrix_f2 f, Matrix_f1 h[], uint_fast8_t x_dim, uint_fast8_t z_dim[], uint_fast8_t u_dim, Matrix_f2 Fx, Matrix_f2 Fu, Matrix_f1 H[], uint_fast8_t z_num)
@@ -106,7 +105,7 @@ void Ekf::predict()
 
     // x<- f(x,u)
     Vin = x;
-    f(*x, *u);
+    f(*x, *u, *c);
 
     uint16_t tmp2_size = tmp2->size;
     uint16_t tmp1_size = tmp1->size;
@@ -116,7 +115,7 @@ void Ekf::predict()
     if (Fx != nullptr)
     {
         Min = Fx_val;
-        Fx(*x, *u);
+        Fx(*x, *u, *c);
     }
     else
         finite_diff_Fx();
@@ -124,7 +123,7 @@ void Ekf::predict()
     if (Fu != nullptr)
     {
         Min = Fu_val;
-        Fu(*x, *u);
+        Fu(*x, *u, *c);
     }
     else
         finite_diff_Fu();
@@ -159,7 +158,7 @@ void Ekf::update(const uint8_t iz)
 {
     // y<- z-h(x)
     Vin = h_val[iz];
-    h[iz](*x);
+    h[iz](*x, *c);
     y->size = z_dim[iz];
     sub(*y, *z[iz], *h_val[iz]);
 
@@ -175,7 +174,7 @@ void Ekf::update(const uint8_t iz)
     if (!use_finite_diff)
     {
         Min = H_val;
-        H[iz](*x);
+        H[iz](*x, *c);
     }
     else
     {
@@ -221,12 +220,6 @@ void Ekf::update(const uint8_t iz)
     tmp2->rows = x_dim;
     mul(*tmp2, *tmp1, *P);
     cd(*P, *tmp2);
-
-    // P<- (P+P')/2 (symétrisation pour éviter les erreurs d'arrondi)
-    // refd(refP, *P);
-    // refP.transpose();
-    // add(*P, *P, refP);
-    // mul(*P, *P, 0.5);
 }
 
 void Ekf::finite_diff_Fx(const uint8_t i, const data_type eps)
@@ -236,7 +229,7 @@ void Ekf::finite_diff_Fx(const uint8_t i, const data_type eps)
     tmp1->data[i] += eps;
 
     Vin = tmp1;
-    f(*tmp1, *u);
+    f(*tmp1, *u, *c);
 
     sub(*tmp1, *tmp1, *x);
     mul(*tmp1, *tmp1, 1 / eps);
@@ -252,7 +245,7 @@ void Ekf::finite_diff_Fu(const uint8_t i, const data_type eps)
     utmp->data[i] += eps;
 
     Vin = tmp1;
-    f(*tmp2, *utmp);
+    f(*tmp2, *utmp, *c);
 
     sub(*tmp1, *tmp1, *x);
     mul(*tmp1, *tmp1, 1 / eps);
@@ -268,7 +261,7 @@ void Ekf::finite_diff_H(const uint8_t iz, const uint8_t i, const data_type eps)
     tmp1->data[i] += eps;
 
     Vin = tmp2;
-    h[iz](*tmp1);
+    h[iz](*tmp1, *c);
 
     sub(*tmp2, *tmp2, *(h_val[iz]));
     mul(*tmp2, *tmp2, 1 / eps);

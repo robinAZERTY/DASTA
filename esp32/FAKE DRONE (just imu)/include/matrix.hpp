@@ -7,7 +7,7 @@ Elle permet de réaliser des opérations de base sur des matrices, telles que l'
 tout en optimisant l'utilisation des ressources.
 */
 
-#include "vector.hpp"
+#include "Vector.hpp"
 
 #ifndef ARDUINO
 #include <math.h>

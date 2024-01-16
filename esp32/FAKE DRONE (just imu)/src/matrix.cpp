@@ -1,4 +1,4 @@
-#include "matrix.hpp"
+#include "Matrix.hpp"
 
 Matrix::Matrix(uint_fast8_t rows, uint_fast8_t cols) : Vector(rows * cols)
 {
