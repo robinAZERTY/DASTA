@@ -100,6 +100,7 @@ def decodeHeader(header):
         if header2[1] == MATRIX_KEY:
             #add a "row" key to the dict
             header_dict[i]["row"] = int(header2[3])
+            
     return header_dict
 
 
@@ -255,6 +256,8 @@ def unpackLine(line, header):
 receive_head = None
 receive_buffer = b''
 
+DEBUG = False
+
 def receive(s):
     datas = []
     global receive_buffer
@@ -274,16 +277,23 @@ def receive(s):
             global receive_head
             # print("decoding header : " + str(head_bytes))
             receive_head = decodeHeader(head_bytes)
+            if DEBUG:
+                print("receive_head : " + str(receive_head))
         elif line[:len(SEND_HEADER_KEY)] == SEND_HEADER_KEY:
             head_bytes = line[len(SEND_HEADER_KEY):]
             global send_head
             send_head = decodeHeader(head_bytes)
+            if DEBUG:
+                print("send_head : " + str(send_head))
         else:
             if receive_head == None:
                 print("Error: header not received yet, can't decode the data")
                 return None
             #decode the data
-            datas.append(unpackLine(line, receive_head))
+            new_datas = unpackLine(line, receive_head)
+            datas.append(new_datas)
+            if DEBUG:
+                print("new_datas : " + str(new_datas))
     
     if len(datas) == 0:
         return None
@@ -315,7 +325,7 @@ _______________________________________________________
 '''
 def writeInDB(data,db)->None:
     '''
-    add the data to the dataBase while keeping the old data, and then, clear the data list
+    add the data to the dataBase while keeping the old data
     
     args:
         data : a list of dict with the data to write in the dataBase
@@ -351,9 +361,55 @@ def userInput(send_head,db)->dict:
     1 - wait for a new event in the dataBase (for new content)
     2 - pack the data as a dictionnary
     3 - clear the event in the dataBase (remove the data we just packed)
-    4 - return the packed data         
+    4 - return the packed data     
     '''
     return None
+
+def userInputTest(send_head,db)->dict:
+    '''
+    use the terminal input to listen to the user
+    
+    Re : the last element is the userCommand 
+    wich is in cpp :
+        enum UserEvent
+            {
+                None,
+                StartStateEstimate,
+                StopStateEstimate,
+                StartStream,
+                StopStream,
+                EnableStateEstimateStream,
+                DisableStateEstimateStream,
+                EnableSensorStream,
+                DisableSensorStream,
+            };  
+    '''
+    userInput = input("Enter a command : ")
+    commandKey = "user_event"
+    commandCode = 0
+    
+    if userInput == "StartStateEstimate":
+        commandCode = 1
+    elif userInput == "StopStateEstimate":
+        commandCode = 2
+    elif userInput == "StartStream":
+        commandCode = 3
+    elif userInput == "StopStream":
+        commandCode = 4
+    elif userInput == "EnableStateEstimateStream":
+        commandCode = 5
+    elif userInput == "DisableStateEstimateStream":
+        commandCode = 6
+    elif userInput == "EnableSensorStream":
+        commandCode = 7
+    elif userInput == "DisableSensorStream":
+        commandCode = 8
+    else:
+        print("Error: unknown command")
+        return None
+    
+
+    return {commandKey:commandCode}
     
 
 '''
@@ -376,13 +432,15 @@ def receiveTask(s):
 def saveTask(file):
     global received_data
     while True:
-        writeInDB(received_data, file)#to slow
+        writeInDB(received_data, file)
+        received_data = []
         time.sleep(0.1)
-            
-    
+
+
 def sendTask(s,db):
     while True:
-        data = userInput(send_head,db)
+        # data = userInput(send_head,db)
+        data = userInputTest(send_head,db)
         if data is not None:
             send(s, data, send_head)
         if send_head is None:
@@ -407,9 +465,6 @@ def main():
     threading.Thread(target=saveTask, args=(telemetry_db,)).start()
 
 
-
-        
 # Exécutez le programme principal
 if __name__ == "__main__":
-
     main()
