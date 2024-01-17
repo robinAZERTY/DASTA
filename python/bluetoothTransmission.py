@@ -9,7 +9,7 @@ import os
 
 
 
-STD_TYPE_KEY = ['c', 'i', 'Q', 'f', 'd']
+STD_TYPE_KEY = ['c', 'i', 'Q', 'f', 'd','B']
 VECTOR_KEY = 'v'
 MATRIX_KEY = 'm'
 VECTOR_CONTENT_TYPE_KEY = 'f'
@@ -135,9 +135,9 @@ def getTypeKey(var):
 def packOneData(OneData, formatt):
     # print("packing : " + str(OneData) + " with format : " + str(formatt))
     #check if the type of the data is correct
-    if getTypeKey(OneData) != formatt["type"]:
-        print("Error: the type of the data is not correct")
-        return None
+    # if getTypeKey(OneData) != formatt["type"]:
+    #     print("Error: the type of the data is not correct")
+    #     return None
     
     packedData = struct.pack(formatt["type"], OneData)
     if len(packedData) != formatt["size"]:
@@ -152,19 +152,24 @@ def packData(data, header):
     
     packedData = b''
     send_register = 0
-    # for i in range(len(header)):
-    #     #pack the data
-    #     if header[i]["name"] in data:
-    #         send_register += 1 << i
-    #         packedData += packOneData(data[header[i]["name"]], header[i])
-    for i in range(len(data)):
+    for i in range(len(header)):
         #pack the data
-        for key in data[i].keys():
-            if key in header:
-                send_register += 1 << i
-                packedData += packOneData(data[i][key], header[key])
-            else:
-                print("warning: " + key + " is not recognized by the embedded system, refer to the send_head to see the understood data")
+        if header[i]["name"] in data:
+            send_register += 1 << i
+            packedData += packOneData(data[header[i]["name"]], header[i])
+    # for i in range(len(data)):
+    #     #pack the data
+    #     for key in data[i].keys():
+    #         for j in range(len(header)):
+    #             founded = False
+    #             if header[j]["name"] == key:
+    #                 founded = True
+    #                 send_register += 1 << j
+    #                 packedData += packOneData(data[i][key], header[j])
+    #                 break
+    #             if not founded:
+    #                 print("warning: " + key + " is not recognized by the embedded system, refer to the send_head to see the understood data")
+    #                 print("send_head : " + str(header))
     if len(packedData) == 0:
         return None   
       
@@ -256,7 +261,7 @@ def unpackLine(line, header):
 receive_head = None
 receive_buffer = b''
 
-DEBUG = False
+DEBUG = True
 
 def receive(s):
     datas = []
@@ -384,7 +389,8 @@ def userInputTest(send_head,db)->dict:
                 DisableSensorStream,
             };  
     '''
-    userInput = input("Enter a command : ")
+    
+    userInput =  input("Enter a command : ")
     commandKey = "user_event"
     commandCode = 0
     
@@ -408,8 +414,8 @@ def userInputTest(send_head,db)->dict:
         print("Error: unknown command")
         return None
     
-
-    return {commandKey:commandCode}
+    ret = {commandKey:commandCode}
+    return ret
     
 
 '''
