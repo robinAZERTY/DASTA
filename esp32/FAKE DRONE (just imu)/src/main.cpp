@@ -3,8 +3,7 @@
 Dasta dasta;
 
 #define STATE_ESTIMATE_DT_ms 10
-#define COMMUNICATION_DT_ms 100
-#define PRINT_DT_ms 100
+#define PRINT_DT_ms 500
 
 unsigned long now = 0;
 
@@ -19,7 +18,7 @@ void stateEstimateTask(void *pvParameters)
     {
       last_time = now;
       dasta.sensors.readSensors();
-      dasta.estimator.run(dasta.sensors.getTime() / 1000.0);
+      // dasta.estimator.run(dasta.sensors.getTime() / 1000.0);
     }
     // freeRTOS
     delay(1);
@@ -31,7 +30,7 @@ void communicationTask(void *pvParameters)
   unsigned long last_time = now;
   while (1)
   {
-    if (now - last_time > COMMUNICATION_DT_ms)
+    if (now - last_time > dasta.communication.send_stream.delay)
     {
       last_time = now;
       dasta.communication.send();
@@ -52,7 +51,7 @@ String vec2str(Vector &v)
   String s = "";
   for (int i = 0; i < v.size; i++)
   {
-    s += String(v(i)) + " ";
+    s += String(v.data[i]) + " ";
   }
   return s;
 }
@@ -65,23 +64,25 @@ void printTask(void *pvParameters)
   {
     if (now - last_time >= PRINT_DT_ms)
     {
-      q2rpy(rpy, dasta.estimator.orientation);
-      mul(rpy, rpy, 180 / M_PI);
+      // q2rpy(rpy, dasta.estimator.orientation);
+      // mul(rpy, rpy, 180 / M_PI);
       last_time = now;
       Serial.print("t: ");
-      Serial.print(dasta.sensors.getTime());
-      Serial.print("\tekf_dt: ");
-      Serial.print(String(StateEstimate::dt_proprio, 4));
-      Serial.print("\tp: ");
-      Serial.print(vec2str(dasta.estimator.position));
-      Serial.print("\tv: ");
-      Serial.print(vec2str(dasta.estimator.velocity));
-      Serial.print("\trpy: ");
-      Serial.print(vec2str(rpy));
+      Serial.print(dasta.sensors.imu.getTime());
+      // Serial.print("\tekf_dt: ");
+      // Serial.print(String(StateEstimate::dt_proprio, 4));
+      // Serial.print("\tp: ");
+      // Serial.print(vec2str(dasta.estimator.position));
+      // Serial.print("\tv: ");
+      // Serial.print(vec2str(dasta.estimator.velocity));
+      // Serial.print("\trpy: ");
+      // Serial.print(vec2str(rpy));
       Serial.print("\tacc: ");
       Serial.print(vec2str(dasta.sensors.acc));
       Serial.print("\tgyro: ");
       Serial.print(vec2str(dasta.sensors.gyro));
+      Serial.print("\tuser_event: ");
+      Serial.print(dasta.decisionnal_unit.user_event);
       Serial.println();
     }
     delay(1);

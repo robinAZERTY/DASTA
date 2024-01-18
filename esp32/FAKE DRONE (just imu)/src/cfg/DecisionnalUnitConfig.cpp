@@ -1,25 +1,18 @@
 #include "Dasta.hpp"
 
-SensorPreProcessing Dasta::sensors;
-Actuators Dasta::actuators;
-
-Dasta::Dasta()
+enum UserEvent : uint8_t
 {
-    // allocate and link the matrices and vectors
-    (sensors.acc_bias = Vector(3)).fill(0);
-    (sensors.gyro_bias = Vector(3)).fill(0);
-    (sensors.mag_bias = Vector(3)).fill(0);
+    None,
+    StartStateEstimate,
+    StopStateEstimate,
+    StartStream,
+    StopStream,
+    EnableStateEstimateStream,
+    DisableStateEstimateStream,
+    EnableSensorStream,
+    DisableSensorStream,
+};
 
-    (sensors.acc_scale = Matrix(3, 3)).set_eye();
-    (sensors.gyro_scale = Matrix(3, 3)).set_eye();
-    (sensors.mag_scale = Matrix(3, 3)).set_eye();
-
-    sensors.gyro.data = estimator.ekf->u->data;
-    sensors.acc.data = estimator.ekf->u->data + 3;
-    sensors.mag = Vector(3);
-
-    configCommunication();
-}
 
 void Dasta::runDecisionOnUserEvent()
 {

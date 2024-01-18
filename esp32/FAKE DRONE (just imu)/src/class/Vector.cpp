@@ -1,4 +1,4 @@
-#include "vector.hpp"
+#include "Vector.hpp"
 
 // count the number of bytes allocated by the class
 unsigned long long Vector::alloc_count = 0;

@@ -4,6 +4,19 @@
 #include "BluetoothSerial.h"
 
 
+// types keys struct
+struct BL_types
+{
+    char CHAR;
+    char INT;
+    char UNSIGNED_LONG_LONG;
+    char FLOAT;
+    char DOUBLE;
+    char VECTOR;
+    char MATRIX;
+    char UNSIGNED_CHAR;
+};
+
 struct BL_stream
 {
 private:
@@ -18,6 +31,8 @@ private:
     uint32_t total_data_size = 0;
 
 public:
+    int delay = 0;
+    static BL_types types;
     String end_line = "\n";
     String name = "default";
     uint32_t _register = 0; // describes what to include in the stream with binary flags
@@ -44,7 +59,7 @@ public:
     String device_name = "ESP32-Bluetooth";
     BL_stream send_stream, receive_stream;
     BluetoothSerial SerialBT;
-    Communication();
+    Communication(){};
     ~Communication(){}; // TODO : free data
     int start();
     int send_header(BL_stream *stream);

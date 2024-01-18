@@ -1,15 +1,6 @@
 #include "Communication.hpp"
-#include "CommunicationConfig.hpp"
 
-Communication::Communication()
-{
-    send_stream.name = SEND_STREAM_NAME;
-    receive_stream.name = RECEIVE_STREAM_NAME;
-
-    send_stream.end_line = END_LINE;
-    receive_stream.end_line = END_LINE;
-}
-
+BL_types BL_stream::types;
 
 String BL_stream::header()
 {
@@ -26,7 +17,7 @@ String BL_stream::header()
         }
         in++;
         header += name + ":" + String(this->data_type[i]) + ":" + String(this->data_size[i]);
-        if (this->data_type[i] == MATRIX_KEY)
+        if (this->data_type[i] == types.MATRIX)
         {
             header += ":" + String(this->mat_col[im]);
             im++;
@@ -98,13 +89,13 @@ bool BL_stream::include(const char *name, uint8_t *data, char data_type, uint16_
 
 bool BL_stream::include(const char *name, Vector &vec, bool stream)
 {
-    return this->include(name, (uint8_t *)vec.data, VECTOR_KEY, vec.size * sizeof(data_type));
+    return this->include(name, (uint8_t *)vec.data, types.VECTOR, vec.size * sizeof(data_type));
 }
 
 bool BL_stream::include(const char *name, Matrix &mat, bool stream)
 {
     Serial.println("mat size: " + String(mat.rows) + " " + String(mat.cols) + " " + String(mat.size));
-    if (!this->include(name, (uint8_t *)mat.data, MATRIX_KEY, mat.size * sizeof(data_type)))
+    if (!this->include(name, (uint8_t *)mat.data, types.MATRIX, mat.size * sizeof(data_type)))
         return false;
 
     this->mat_col = (uint8_t *)realloc(this->mat_col, (this->mat_col_length + 1) * sizeof(uint8_t));

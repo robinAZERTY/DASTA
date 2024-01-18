@@ -5,6 +5,7 @@
         "initializer_list": "cpp",
         "utility": "cpp",
         "limits": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "memory_resource": "cpp"
     }
 }

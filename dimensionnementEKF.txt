@@ -91,3 +91,43 @@ Z = H(X):
 	L4_i = L4_c * f / z_l4c				// projection dans l'image
 	
 	Z = [x_l1c y_l1c x_l2c y_l2c x_l3c y_l3c x_l4c y_l4c];
+
+
+
+____________STATE ESTIMATE VECTOR______________
+
+        State                   unit        index
+postion(xyz)                    m           1:3
+velocity(xyz)                   m/s         4:6
+orientation(quaternion)                     7:10
+
+
+
+___________COMMANDS VECTOR_____________________
+
+        State                   unit        index
+gyroscopes(xyz)                 rad/s       1:3
+accelerometers(xyz)             m/s²        4:6
+
+
+___________SENSORS VECTOR_____________________
+
+        State                   unit       index
+beac1_cam1(uv)                  pixel       1:2
+beac2_cam1(uv)                  pixel       3:4
+beac1_cam2(uv)                  pixel       5:6
+beac2_cam2(uv)                  pixel       7:8
+
+___________PARAMS VECTOR_____________________
+
+        State                   unit       index
+cam1_pos(xyz)                   m           1:3
+cam1_ori(quaternion)                        4:7
+cam1_k                          pixel        8
+cam2_pos(xyz)                   m           9:11
+cam2_ori(quaternion)                        12:15
+cam2_k                          pixel        16
+dt                              s            17
+g                               m/s²         18
+led1_pos(xyz)                   m           19:21
+led2_pos(xyz)                   m           22:24

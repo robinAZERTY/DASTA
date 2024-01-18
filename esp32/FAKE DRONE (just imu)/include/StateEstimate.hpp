@@ -10,11 +10,12 @@ private:
     float last_time_extero=-1;
 
 public:
+    data_type gravity;
     bool running = false;
     StateEstimate();
     ~StateEstimate();
     void run(const float time);
-    static float dt_proprio; // période mesuré d'échantillonnage des capteurs proprio
+    float dt_proprio; // période mesuré d'échantillonnage des capteurs proprio
     Ekf *ekf;
     Vector position;
     Vector velocity;

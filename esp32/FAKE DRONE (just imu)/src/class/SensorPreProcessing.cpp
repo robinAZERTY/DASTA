@@ -1,0 +1,87 @@
+#include "SensorPreProcessing.hpp"
+
+SensorPreProcessing::SensorPreProcessing()
+{
+    acc.size = 3;
+    gyro.size = 3;
+    mag.size = 3;
+
+    tmp = Vector(3);
+}
+
+SensorPreProcessing::~SensorPreProcessing()
+{
+}
+
+void SensorPreProcessing::init()
+{
+    
+    if (imu.begin()<0)
+    {
+        Serial.println("Failed to communicate with IMU!");
+        while (1)
+            ;
+    }
+
+    //check if the Measurment vectors are correctly set
+    if (acc.data == NULL || gyro.data == NULL || mag.data == NULL ||
+        acc.size != 3 || gyro.size != 3 || mag.size != 3)
+    {
+        Serial.println("Measurment vectors are not set correctly!");
+        while (1)
+            ;
+    }
+
+    //check if all the compensation parameters are correctly set
+    if (acc_bias_co.data == NULL || gyro_bias_co.data == NULL || mag_bias_co.data == NULL ||
+        acc_scale_co.data == NULL || gyro_scale_co.data == NULL || mag_scale_co.data == NULL
+        || acc_bias_co.size != 3 || gyro_bias_co.size != 3 || mag_bias_co.size != 3
+        || acc_scale_co.size != 9 || gyro_scale_co.size != 9 || mag_scale_co.size != 9)
+    {
+        Serial.println("Compensation parameters are not set correctly!");
+        while (1)
+            ;
+    }
+}
+
+void SensorPreProcessing::readSensors()
+{
+    imu.readSensor();
+
+    acc.data[0] = imu.getAccelX_mss();
+    acc.data[1] = imu.getAccelY_mss();
+    acc.data[2] = imu.getAccelZ_mss();
+
+    gyro.data[0] = imu.getGyroX_rads();
+    gyro.data[1] = imu.getGyroY_rads();
+    gyro.data[2] = imu.getGyroZ_rads();
+
+    mag.data[0] = imu.getMagX_uT();
+    mag.data[1] = imu.getMagY_uT();
+    mag.data[2] = imu.getMagZ_uT();
+    
+    imu_compensated = false;
+}
+
+void SensorPreProcessing::compensateIMU()
+{
+    if (imu_compensated)
+        return;
+
+    //compensate accelerometer
+    add(acc, acc, acc_bias_co);
+    mul(tmp, acc_scale_co, acc);
+    cd(acc, tmp);
+
+    //compensate gyroscope
+    add(gyro, gyro, gyro_bias_co);
+    mul(tmp, gyro_scale_co, gyro);
+    cd(gyro, tmp);
+
+    // //compensate magnetometer
+    add(mag, mag, mag_bias_co);
+    mul(tmp, mag_scale_co, mag);
+    cd(mag, tmp);
+
+    imu_compensated = true;
+}

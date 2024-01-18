@@ -7,23 +7,21 @@
 
 class SensorPreProcessing
 {
-    unsigned long long time; // time in milliseconds
-public:
+    public:
     SensorPreProcessing();
     ~SensorPreProcessing();
 
     void init();
     void readSensors();
     void compensateIMU();
-    const unsigned long long &getTime() { return time; };
-    static MPU9250 imu;
+    MPU9250 imu = MPU9250(Wire, 0x68);
     Cam cam1, cam2;
     Vector acc, gyro, mag;
 
-    Vector acc_bias, gyro_bias, mag_bias;    // bias vector (3x1)
-    Matrix acc_scale, gyro_scale, mag_scale; // scale matrix (3x3)
+    Vector acc_bias_co, gyro_bias_co, mag_bias_co;    // bias vector (3x1)
+    Matrix acc_scale_co, gyro_scale_co, mag_scale_co; // scale matrix (3x3)
 
     bool imu_compensated = false;
-    Vector tmp = Vector(3);
+    Vector tmp;
 };
 #endif // SENSOR_PREPROCESSING_HPP

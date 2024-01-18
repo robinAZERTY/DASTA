@@ -1,12 +1,13 @@
 #ifndef DECISIONNAL_UNIT_HPP
 #define DECISIONNAL_UNIT_HPP
-#include "DecisionnalUnitConfig.hpp"
+
+#include <Arduino.h>
 
 class DecisionnalUnit
 {
 
 public:
-    UserEvent user_event = None;
+    uint8_t user_event;
     DecisionnalUnit(/* args */);
     ~DecisionnalUnit();
 };
