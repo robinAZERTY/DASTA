@@ -17,13 +17,13 @@ void Dasta::configCommunication()
     communication.send_stream.end_line = "end_line\n";
     communication.receive_stream.end_line = "end_line\n";
     
-    communication.send_stream.include("time", (uint8_t *)&sensors.imu.getTime(), BL_stream::types.UNSIGNED_LONG_LONG, sizeof(sensors.imu.getTime())); 
-    communication.send_stream.include("acc", sensors.acc, false);
-    communication.send_stream.include("gyro", sensors.gyro,false);
-    communication.send_stream.include("mag", sensors.mag,false);
-    communication.send_stream.include("position", estimator.position,false);
-    communication.send_stream.include("velocity", estimator.velocity,false);
-    communication.send_stream.include("orientation", estimator.orientation,false);
+    communication.send_stream.include("time", (uint8_t *)&sensors.imu.getTime(), BL_stream::types.UNSIGNED_LONG_LONG, sizeof(sensors.imu.getTime()),true); 
+    communication.send_stream.include("acc", sensors.acc);
+    communication.send_stream.include("gyro", sensors.gyro);
+    communication.send_stream.include("mag", sensors.mag);
+    communication.send_stream.include("position", estimator.position);
+    communication.send_stream.include("velocity", estimator.velocity);
+    communication.send_stream.include("orientation", estimator.orientation);
     // communication.send_stream.include("Covariance", *estimator.ekf->P);
 
     communication.receive_stream.include("acc_bias", sensors.acc_bias_co);

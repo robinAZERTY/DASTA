@@ -40,9 +40,9 @@ public:
     uint8_t **get_data() { return this->data; };
     uint16_t *get_data_size() { return this->data_size; };
     uint32_t get_total_data_size() { return this->total_data_size; };
-    bool include(const char *name, uint8_t *data, char data_type, uint16_t data_size, bool stream = true);
-    bool include(const char *name, Vector &vec, bool stream = true);
-    bool include(const char *name, Matrix &mat, bool stream = true);
+    bool include(const char *name, uint8_t *data, char data_type, uint16_t data_size, bool stream = false);
+    bool include(const char *name, Vector &vec, bool stream = false);
+    bool include(const char *name, Matrix &mat, bool stream = false);
     bool enable(const char *name);
     bool disable(const char *name);
     String header();

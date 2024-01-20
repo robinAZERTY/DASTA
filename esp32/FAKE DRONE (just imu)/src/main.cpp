@@ -30,12 +30,13 @@ void communicationTask(void *pvParameters)
   unsigned long last_time = now;
   while (1)
   {
+    dasta.communication.receive();
+    dasta.runDecisionOnUserEvent();
+    
     if (now - last_time > dasta.communication.send_stream.delay)
     {
       last_time = now;
       dasta.communication.send();
-      dasta.communication.receive();
-      dasta.runDecisionOnUserEvent();
     }
     if (!dasta.communication.SerialBT.connected(100))
     {
@@ -64,25 +65,21 @@ void printTask(void *pvParameters)
   {
     if (now - last_time >= PRINT_DT_ms)
     {
-      // q2rpy(rpy, dasta.estimator.orientation);
-      // mul(rpy, rpy, 180 / M_PI);
       last_time = now;
       Serial.print("t: ");
-      Serial.print(dasta.sensors.imu.getTime());
-      // Serial.print("\tekf_dt: ");
-      // Serial.print(String(StateEstimate::dt_proprio, 4));
-      // Serial.print("\tp: ");
-      // Serial.print(vec2str(dasta.estimator.position));
-      // Serial.print("\tv: ");
-      // Serial.print(vec2str(dasta.estimator.velocity));
-      // Serial.print("\trpy: ");
-      // Serial.print(vec2str(rpy));
-      Serial.print("\tacc: ");
-      Serial.print(vec2str(dasta.sensors.acc));
-      Serial.print("\tgyro: ");
-      Serial.print(vec2str(dasta.sensors.gyro));
-      Serial.print("\tuser_event: ");
-      Serial.print(dasta.decisionnal_unit.user_event);
+      Serial.print(now);
+      Serial.print("\tTasks stack size left: ");
+      Serial.print(uxTaskGetStackHighWaterMark(stateEstimateTaskHandle));
+      Serial.print(" ");
+      Serial.print(uxTaskGetStackHighWaterMark(communicationTaskHandle));
+      Serial.print(" ");
+      Serial.print(uxTaskGetStackHighWaterMark(printTaskHandle));
+      Serial.print("\t total remaining RAM: ");
+      Serial.print(ESP.getFreeHeap());Serial.print(" / ");Serial.print(ESP.getHeapSize());
+      Serial.print("\t send stream status (running, delay): ");
+      Serial.print(dasta.communication.running_send_stream);
+      Serial.print(", ");
+      Serial.print(dasta.communication.send_stream.delay);
       Serial.println();
     }
     delay(1);
@@ -100,7 +97,7 @@ void setup()
   xTaskCreatePinnedToCore(
       stateEstimateTask,        /* Function to implement the task */
       "stateEstimateTask",      /* Name of the task */
-      10000,                    /* Stack size in words */
+      1500,                    /* Stack size in words */
       NULL,                     /* Task input parameter */
       0,                        /* Priority of the task , the lower the more priority*/
       &stateEstimateTaskHandle, /* Task handle. */
@@ -109,18 +106,18 @@ void setup()
   xTaskCreatePinnedToCore(
       communicationTask,        /* Function to implement the task */
       "communicationTask",      /* Name of the task */
-      10000,                    /* Stack size in words */
+      900,                    /* Stack size in words */
       NULL,                     /* Task input parameter */
-      0,                        /* Priority of the task */
+      1,                        /* Priority of the task */
       &communicationTaskHandle, /* Task handle. */
       1);                       /* Core where the task should run */
 
   xTaskCreatePinnedToCore(
       printTask,        /* Function to implement the task */
       "printTask",      /* Name of the task */
-      10000,            /* Stack size in words */
+      1000,            /* Stack size in words */
       NULL,             /* Task input parameter */
-      1,                /* Priority of the task */
+      2,                /* Priority of the task */
       &printTaskHandle, /* Task handle. */
       1);               /* Core where the task should run */
 }

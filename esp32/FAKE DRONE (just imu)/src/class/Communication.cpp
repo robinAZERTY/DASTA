@@ -78,6 +78,8 @@ bool BL_stream::include(const char *name, uint8_t *data, char data_type, uint16_
 
     if (stream)
         this->_register |= 1 << this->length;
+    else
+        this->_register &= ~(1 << this->length);
 
     this->length++;
 
@@ -89,13 +91,13 @@ bool BL_stream::include(const char *name, uint8_t *data, char data_type, uint16_
 
 bool BL_stream::include(const char *name, Vector &vec, bool stream)
 {
-    return this->include(name, (uint8_t *)vec.data, types.VECTOR, vec.size * sizeof(data_type));
+    return this->include(name, (uint8_t *)vec.data, types.VECTOR, vec.size * sizeof(data_type), stream);
 }
 
 bool BL_stream::include(const char *name, Matrix &mat, bool stream)
 {
     Serial.println("mat size: " + String(mat.rows) + " " + String(mat.cols) + " " + String(mat.size));
-    if (!this->include(name, (uint8_t *)mat.data, types.MATRIX, mat.size * sizeof(data_type)))
+    if (!this->include(name, (uint8_t *)mat.data, types.MATRIX, mat.size * sizeof(data_type), stream))
         return false;
 
     this->mat_col = (uint8_t *)realloc(this->mat_col, (this->mat_col_length + 1) * sizeof(uint8_t));
