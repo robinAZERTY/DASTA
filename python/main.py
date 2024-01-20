@@ -41,8 +41,8 @@ def linkBL_and_Calibration():
     while not bluetoothTransmission.inited:
         time.sleep(0.1)
     
-    #do the gyro bias estimation and begin the sensor stream at 40 
     time.sleep(1)
+    #do the gyro bias estimation and begin the sensor stream at 40 
     bluetoothTransmission.data_to_send.append({"user_event": UserEvent.START_GYRO_BIAS_ESTIMATION.value})
     time.sleep(3)
     bluetoothTransmission.data_to_send.append({"user_event": UserEvent.STOP_GYRO_BIAS_ESTIMATION.value})
