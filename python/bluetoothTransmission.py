@@ -472,14 +472,14 @@ def saveTask(file):
 data_to_send = []
 def sendTask(s,db):
     global data_to_send
+    while inited == False or send_head is None:
+        time.sleep(0.1)
+    time.sleep(1) #to be sure all is stable
     while True:
-        if send_head is None:
-            time.sleep(0.5)
-            continue
         if len(data_to_send) > 0:
             send(s, data_to_send, send_head)
         #to let the other threads run
-        time.sleep(0.05)
+        time.sleep(0.1)
 
 def userInputTask(db):
     global data_to_send

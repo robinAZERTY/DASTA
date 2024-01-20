@@ -6,6 +6,7 @@ from navpy import angle2quat
 from navpy import quat2angle
 from navpy import quat2dcm
 from navpy import dcm2quat
+from pyquaternion import Quaternion
 import time as t
 
 '''
@@ -157,9 +158,9 @@ def f(X,U):
         '''
         transition function
         '''
-        xyz = X[0:3]
-        vxyz = X[3:6]
-        q0,qvec = X[6],X[7:10]
+        xyz = X[0:3].reshape(3)
+        vxyz = X[3:6].reshape(3)
+        q0,qvec = X[6][0],X[7:10].reshape(3)
         abxyz = np.array(X[10:13]).reshape(3,1)
         gyro = np.array(U[0:3]).reshape(3,1)
         acc= np.array(U[3:6]).reshape(3,1)
@@ -174,9 +175,10 @@ def f(X,U):
         xyz_ = xyz + vxyz*dt_imu
         
         # integration of linear accelerations
-        print("acc = ",acc)
+        # print("acc = ",acc)
         qdcm = quat2dcm(q0,qvec)
         ae = qdcm@acc
+        ae = ae.reshape(3)
         vxyz_ = vxyz + (ae+np.array([0,0,g]))*dt_imu
         
         # integration of orientation
@@ -190,12 +192,18 @@ def f(X,U):
         # print("dq0 = ",dq0)
         # print("dqvec = ",dqvec)
         # dq = np.array([dq0,dqvec[0],dqvec[1],dqvec[2]])
-        dq = quatMul(q0,qvec,0,gyro)
-        print("dq = ",dq)
-        q_ = [q0,qvec[0],qvec[1],qvec[2]] + 0.5*dt_imu*dq
-        # q_ = q_.normalize()
+        # dq = quatMul(q0,qvec,0,gyro)
+        # # dq = np.array([dq0,dqvec[0],dqvec[1],dqvec[2]])
+        # dq0,dqvec = dq[0],dq[1]
+        # dq = np.array([dq0,dqvec[0],dqvec[1],dqvec[2]]).reshape(4)
+        # q_ = np.array([q0,qvec[0],qvec[1],qvec[2]]).reshape(4) + 0.5*dt_imu*dq
+        # q0_,qvec_ = normalize(q_[0],q_[1:4])
+        # q_ = np.array([q0_,qvec_[0],qvec_[1],qvec_[2]]).reshape(4)
+        q_ = Quaternion(q0,qvec[0],qvec[1],qvec[2])
+        q_.integrate(gyro.reshape(3),dt_imu)
+        q_ = q_.elements
         
-        return np.concatenate((xyz_,vxyz_,q_,X[11:48]))
+        return np.concatenate((xyz_,vxyz_,q_,X[10:47].reshape(37))).reshape(47,1)
 
 def quatMul(q10,q1vec,q20,q2vec):
         '''
@@ -203,43 +211,50 @@ def quatMul(q10,q1vec,q20,q2vec):
         q1vec dim = 3*1
         q2vec dim = 3*1
         '''
-        print("q10 = ",q10)
-        print("q1vec.shape = ",q1vec.shape)
-        print("q20 = ",q20)
-        print("q2vec.shape = ",q2vec.shape)
-        
-        q0 = q10*q20 - np.dot(q1vec,np.transpose(q2vec))
-        qvec = q10*q2vec + q20*q1vec + np.cross(q1vec,np.transpose(q2vec))
+        q1vec = q1vec.reshape(3)
+        q2vec = q2vec.reshape(3)        
+        q0 = q10*q20 - np.dot(q1vec,q2vec)
+        qvec = q10*q2vec + q20*q1vec + np.cross(q1vec,q2vec)
+        return q0,qvec
+
+def normalize(q0,qvec):
+        '''
+        normalize a quaternion
+        '''
+        q0 = q0/np.linalg.norm(q0)
+        qvec = qvec/np.linalg.norm(qvec)
         return q0,qvec
 
 def h(X):
         '''
         measurement function
         '''
-        xyz = X[0:3]
-        q = quat.quaternion(X[6:10])
-        cam1_p = X[31:34]
-        cam1_q = quat.quaternion(X[34],X[35],X[36],X[37])
-        cam1_k = X[38]
-        cam2_p = X[39:42]
-        cam2_q = quat.quaternion(X[42],X[43],X[44],X[45])
-        cam2_k = X[46]
+        return X[0:3]
+
+        # xyz = X[0:3]
+        # q = quat.quaternion(X[6:10])
+        # cam1_p = X[31:34]
+        # cam1_q = quat.quaternion(X[34],X[35],X[36],X[37])
+        # cam1_k = X[38]
+        # cam2_p = X[39:42]
+        # cam2_q = quat.quaternion(X[42],X[43],X[44],X[45])
+        # cam2_k = X[46]
         
-        # projection of ir1
-        l1 = q.rotate(beac1_pos)+xyz
-        l1 = cam1_q.rotate(l1-cam1_p)
-        l1 = l1[0:2]*cam1_k/l1[2]
-        l1 = cam2_q.rotate(l1-cam2_p)
-        l1 = l1[0:2]*cam2_k/l1[2]
+        # # projection of ir1
+        # l1 = q.rotate(beac1_pos)+xyz
+        # l1 = cam1_q.rotate(l1-cam1_p)
+        # l1 = l1[0:2]*cam1_k/l1[2]
+        # l1 = cam2_q.rotate(l1-cam2_p)
+        # l1 = l1[0:2]*cam2_k/l1[2]
         
-        # projection of ir2
-        l2 = q.rotate(beac2_pos)+xyz
-        l2 = cam1_q.rotate(l2-cam1_p)
-        l2 = l2[0:2]*cam1_k/l2[2]
-        l2 = cam2_q.rotate(l2-cam2_p)
-        l2 = l2[0:2]*cam2_k/l2[2]
+        # # projection of ir2
+        # l2 = q.rotate(beac2_pos)+xyz
+        # l2 = cam1_q.rotate(l2-cam1_p)
+        # l2 = l2[0:2]*cam1_k/l2[2]
+        # l2 = cam2_q.rotate(l2-cam2_p)
+        # l2 = l2[0:2]*cam2_k/l2[2]
         
-        return np.concatenate((l1,l2))
+        # return np.concatenate((l1,l2))
 
 '''
 %basic specifications of mpu6050
@@ -374,9 +389,10 @@ def init(ekf):
         ekf.Pn[46,46] = k_uncertainty**2       
 
         ekf.Q = np.diag([gyr_noise,gyr_noise,gyr_noise,acc_noise,acc_noise,acc_noise])
-        ekf.R = np.eye(8)*cam_noise**2
+        # ekf.R = np.eye(8)*cam_noise**2
+        ekf.R = np.eye(3)
 
-ekf = kf.myEKF(f,h,47,8,6)
+ekf = kf.myEKF(f,h,47,3,6)
 
 time = None
 gyr = None
@@ -389,19 +405,36 @@ beac1_cam2 = None
 beac2_cam2 = None
 
 last_time = 0
+min_dt = 100
+max_dt = 0
+lp_a = 0.01
+lpf_dt = 0
+dt_save = []
+
 def predict():
         '''
         predict the state
         '''
-        global dt_imu, last_time, new_proprio, time, gyr, acc
+        global dt_imu, last_time, new_proprio, time, gyr, acc, min_dt, max_dt, lpf_dt
         dt_imu = (time-last_time)/1000.0
         last_time = time
-        print("dt_imu = ",dt_imu)
-        
-        if (dt_imu>0.1):
+        # print("dt_imu = ",dt_imu)
+
+        if (dt_imu>1):
                 new_proprio = False
                 return
-                
+        
+        dt_save.append(dt_imu)
+        if (dt_imu< min_dt):
+                min_dt = dt_imu
+        if (dt_imu>max_dt):
+                max_dt = dt_imu
+        lpf_dt = lpf_dt*(1-lp_a)+dt_imu*lp_a
+        
+        
+         
+         
+          
         ekf.Un = np.concatenate((gyr,acc))
         ekf.predict()
         new_proprio = False
@@ -423,9 +456,11 @@ def calibrationTask():
         while True:
                 if new_proprio:
                         predict()
-                        print(ekf.Xn[6:10])
-                if new_measure:
-                        update(beac1_cam1,beac2_cam1,beac1_cam2,beac2_cam2)
+                        ekf.Zn[0:3] = 0
+                        ekf.update()
+                        # print(ekf.Xn[6:10])
+                # if new_measure:
+                #         update(beac1_cam1,beac2_cam1,beac1_cam2,beac2_cam2)
                 t.sleep(0.005)
                                  
 def main():
