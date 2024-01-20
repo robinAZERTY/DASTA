@@ -64,7 +64,7 @@ P_est = zeros([length(t),35,35]);
 
 for i = 1:length(t)
      % Prédiction de l'état
-
+    current_t = t(i)
     ekf.Un = [gyr_xx(i); gyr_yy(i); gyr_zz(i); acc_xx(i); acc_yy(i); acc_zz(i)];
     ekf = ekf.predict();
     ekf.Zn = [gps_x(i);gps_y(i);gps_z(i)];% le système reste proche de l'origine
@@ -248,7 +248,7 @@ end
 
 
 figure('Name',"intensité de pesenteur");
-plot(t,gravity*ones([1 length(t)]), 'r-', 'LineWidth', 1.5);
+plot(t,abs(gravity)*ones([1 length(t)]), 'r-', 'LineWidth', 1.5);
 hold on;
 plot(t, X_est(:,35), 'r--', 'LineWidth', 1.5); % qw
 plot(t, X_est(:,35) + sqrt(squeeze(P_est(:,35,35))), 'r--', 'LineWidth', 0.5); % qw + sigma
@@ -294,7 +294,7 @@ function next_X = transitionFunction(prev_X, U)
         %fonction de transition d'état (pour la prédiction à l'aide des
         %commandes ou capteurs proprioceptifs)
         
-        dt = 0.1;
+        dt = 0.01;
         [x,y,z,qw,qx,qy,qz,vx,vy,vz,abx,aby,abz,ao11,ao12,ao13,ao21,ao22,ao23,ao31,ao32,ao33,gbx,gby,gbz,go11,go12,go13,go21,go22,go23,go31,go32,go33,g] = deal(prev_X(1),prev_X(2),prev_X(3),prev_X(4),prev_X(5),prev_X(6),prev_X(7),prev_X(8),prev_X(9),prev_X(10),prev_X(11),prev_X(12),prev_X(13),prev_X(14),prev_X(15),prev_X(16),prev_X(17),prev_X(18),prev_X(19),prev_X(20),prev_X(21),prev_X(22),prev_X(23),prev_X(24),prev_X(25),prev_X(26),prev_X(27),prev_X(28),prev_X(29),prev_X(30),prev_X(31),prev_X(32),prev_X(33),prev_X(34),prev_X(35));
         [gx,gy,gz,ax,ay,az] = deal(U(1),U(2),U(3),U(4),U(5),U(6));
         
@@ -306,7 +306,7 @@ function next_X = transitionFunction(prev_X, U)
         [ae_x,ae_y,ae_z] = rotate(ac_xyz(1),ac_xyz(2),ac_xyz(3),qw,qx,qy,qz);
         vx_ = vx+ae_x*dt;
 	    vy_ = vy+ae_y*dt;
-	    vz_ = vz+(ae_z-g)*dt;				% integration des accélération linéaires
+	    vz_ = vz+(ae_z+g)*dt;				% integration des accélération linéaires
         
     
     
