@@ -5,6 +5,8 @@ import json
 import asyncio
 import threading
 import os
+import pprint
+pp = pprint.PrettyPrinter(depth=4)
 
 
 
@@ -132,13 +134,7 @@ def getTypeKey(var):
         return None
     
     
-def packOneData(OneData, formatt):
-    # print("packing : " + str(OneData) + " with format : " + str(formatt))
-    #check if the type of the data is correct
-    # if getTypeKey(OneData) != formatt["type"]:
-    #     print("Error: the type of the data is not correct")
-    #     return None
-    
+def packOneData(OneData, formatt):   
     packedData = struct.pack(formatt["type"], OneData)
     if len(packedData) != formatt["size"]:
         print("Error: the size of the data is not correct")
@@ -157,19 +153,6 @@ def packData(data, header):
         if header[i]["name"] in data:
             send_register += 1 << i
             packedData += packOneData(data[header[i]["name"]], header[i])
-    # for i in range(len(data)):
-    #     #pack the data
-    #     for key in data[i].keys():
-    #         for j in range(len(header)):
-    #             founded = False
-    #             if header[j]["name"] == key:
-    #                 founded = True
-    #                 send_register += 1 << j
-    #                 packedData += packOneData(data[i][key], header[j])
-    #                 break
-    #             if not founded:
-    #                 print("warning: " + key + " is not recognized by the embedded system, refer to the send_head to see the understood data")
-    #                 print("send_head : " + str(header))
     if len(packedData) == 0:
         return None   
       
@@ -182,13 +165,14 @@ def send(s, data, send_head):
         print("Error: header not received yet, can't send the data")
         return None
     #pack the data
-    packedData = packData(data, send_head)
+    print("sending : " + str(data[0]))
+    packedData = packData(data[0], send_head)
+    data.pop(0) 
     if packedData == None:
         return None
     #send the data
     to_send = packedData + END_LINE_KEY  
-    s.sendall(to_send)    
-
+    s.sendall(to_send)
    
 '''
 _______________________________________________________
@@ -279,17 +263,25 @@ def receive(s):
         #decode the header if the line begins with the header key
         if line[:len(RECEIVE_HEADER_KEY)] == RECEIVE_HEADER_KEY:
             head_bytes = line[len(RECEIVE_HEADER_KEY):]
-            global receive_head
-            # print("decoding header : " + str(head_bytes))
-            receive_head = decodeHeader(head_bytes)
+            tmp = decodeHeader(head_bytes)
             if DEBUG:
-                print("receive_head : " + str(receive_head))
+                print("receive_head : ")
+                pp.pprint(tmp)
+                
+            global receive_head
+            receive_head = tmp
+            
         elif line[:len(SEND_HEADER_KEY)] == SEND_HEADER_KEY:
             head_bytes = line[len(SEND_HEADER_KEY):]
-            global send_head
-            send_head = decodeHeader(head_bytes)
+            
+            tmp = decodeHeader(head_bytes)
             if DEBUG:
-                print("send_head : " + str(send_head))
+                print("send_head : ")
+                pp.pprint(tmp)
+            global send_head
+            send_head = tmp
+            global inited
+            inited = True
         else:
             if receive_head == None:
                 print("Error: header not received yet, can't decode the data")
@@ -297,8 +289,9 @@ def receive(s):
             #decode the data
             new_datas = unpackLine(line, receive_head)
             datas.append(new_datas)
-            if DEBUG:
-                print("new_datas : " + str(new_datas))
+            # if DEBUG:
+            #     print("new_datas : ")
+            #     pp.pprint(new_datas)
     
     if len(datas) == 0:
         return None
@@ -390,32 +383,64 @@ def userInputTest(send_head,db)->dict:
             };  
     '''
     
-    userInput =  input("Enter a command : ")
-    commandKey = "user_event"
-    commandCode = 0
+    userKey =  input("Enter a key to transmite : ")
+    keys = [send_head[i]["name"] for i in range(len(send_head))]
+    if userKey not in keys:
+        print("Error: unknown key")
+        return userInputTest(send_head,db)
+    expectedType = send_head[keys.index(userKey)]["type"]
     
-    if userInput == "StartStateEstimate":
-        commandCode = 1
-    elif userInput == "StopStateEstimate":
-        commandCode = 2
-    elif userInput == "StartStream":
-        commandCode = 3
-    elif userInput == "StopStream":
-        commandCode = 4
-    elif userInput == "EnableStateEstimateStream":
-        commandCode = 5
-    elif userInput == "DisableStateEstimateStream":
-        commandCode = 6
-    elif userInput == "EnableSensorStream":
-        commandCode = 7
-    elif userInput == "DisableSensorStream":
-        commandCode = 8
-    else:
-        print("Error: unknown command")
-        return None
+    userValue = input("Enter a " + expectedType + " : ")
+    #convert the value to the correct type
+    try :
+        if send_head[keys.index(userKey)]["type"] == "i":
+            userValue = int(userValue)
+        elif send_head[keys.index(userKey)]["type"] == "f":
+            userValue = float(userValue)
+        elif send_head[keys.index(userKey)]["type"] == "c":
+            userValue = str(userValue)[0]
+        elif send_head[keys.index(userKey)]["type"] == "s":
+            userValue = str(userValue)
+        elif send_head[keys.index(userKey)]["type"] == "v":
+            userValue = [float(i) for i in userValue.split(" ")]
+        elif send_head[keys.index(userKey)]["type"] == "m":
+            userValue = [[float(j) for j in i.split(" ")] for i in userValue.split(";")]
+        elif send_head[keys.index(userKey)]["type"] == "B":
+            userValue = int(userValue)
+        else:
+            print("Error: unknown type")
+            return userInputTest(send_head,db)
+    except Exception as e:
+        print("input incorrect")
+        return userInputTest(send_head,db)
     
-    ret = {commandKey:commandCode}
-    return ret
+    
+    print("returning : " + str({userKey:userValue}))
+    return {userKey:userValue}
+    # commandKey = "user_event"
+    # commandCode = 0
+    
+    # if userInput == "StartStateEstimate":
+    #     commandCode = 1
+    # elif userInput == "StopStateEstimate":
+    #     commandCode = 2
+    # elif userInput == "StartStream":
+    #     commandCode = 3
+    # elif userInput == "StopStream":
+    #     commandCode = 4
+    # elif userInput == "EnableStateEstimateStream":
+    #     commandCode = 5
+    # elif userInput == "DisableStateEstimateStream":
+    #     commandCode = 6
+    # elif userInput == "EnableSensorStream":
+    #     commandCode = 7
+    # elif userInput == "DisableSensorStream":
+    #     commandCode = 8
+    # else:
+    #     print("Error: unknown command")
+    #     return None
+    
+    # ret = {commandKey:commandCode}
     
 
 '''
@@ -434,6 +459,8 @@ def receiveTask(s):
             continue
         if new_data is not None:
             received_data.append(new_data)
+        #to let the other threads run
+        time.sleep(0.001)
                     
 def saveTask(file):
     global received_data
@@ -442,16 +469,27 @@ def saveTask(file):
         received_data = []
         time.sleep(0.1)
 
-
+data_to_send = []
 def sendTask(s,db):
+    global data_to_send
     while True:
-        # data = userInput(send_head,db)
-        data = userInputTest(send_head,db)
-        if data is not None:
-            send(s, data, send_head)
         if send_head is None:
             time.sleep(0.5)
-            
+            continue
+        if len(data_to_send) > 0:
+            send(s, data_to_send, send_head)
+        #to let the other threads run
+        time.sleep(0.05)
+
+def userInputTask(db):
+    global data_to_send
+    while True:
+        #data = userInput(send_head,db)
+        new_data_to_send = userInputTest(send_head,db)
+        if new_data_to_send is not None:
+            data_to_send.append(new_data_to_send)
+        #to let the other threads run
+        time.sleep(0.1)
 
 
 '''
@@ -459,7 +497,7 @@ _______________________________________________________
 _____________________MAIN PROG_________________________
 _______________________________________________________
 '''
-
+inited = False
 def main():
     connection = connect('FC:F5:C4:27:09:16')
     if connection == None:
@@ -469,8 +507,11 @@ def main():
     threading.Thread(target=receiveTask, args=(connection,)).start()
     threading.Thread(target=sendTask, args=(connection,userCommand_db)).start()
     threading.Thread(target=saveTask, args=(telemetry_db,)).start()
-
+    # threading.Thread(target=userInputTask, args=(userCommand_db,)).start()
 
 # Exécutez le programme principal
 if __name__ == "__main__":
     main()
+    data_to_send.append({"user_event": 7, "send_stream_delay": 10})
+    time.sleep(3)
+    data_to_send.append({"user_event": 3})

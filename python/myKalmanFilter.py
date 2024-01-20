@@ -26,12 +26,12 @@ class myEKF:
         return j
 
         
-    def __init__(self, f ,h , x_dim=1, z_dim=1, Fx = None, Fu=None, H = None):        
+    def __init__(self, f ,h , x_dim=1, z_dim=1, u_dim =1, Fx = None, Fu=None, H = None):        
         self.x_dim = x_dim
         self.z_dim = z_dim
         
         #input
-        self.Un = np.zeros((x_dim,1)) #control vector
+        self.Un = np.zeros((u_dim,1)) #control vector
         self.Zn = np.zeros((z_dim,1)) #measurement vector
         self.R = np.eye(z_dim) #measurement covariance matrix
         
@@ -204,7 +204,7 @@ if __name__ == '__main__':
     # Un[1,:] += 0.1
     
     #instanciation of the kalman filter
-    ekf = myEKF(f,h,x_dim=3,z_dim=1)
+    ekf = myEKF(f,h,x_dim=3,z_dim=1,u_dim=2)
     
     #initialisation
     ekf.Xn = X[:,0].reshape(3,1).copy()
