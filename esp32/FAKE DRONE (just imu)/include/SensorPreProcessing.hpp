@@ -14,6 +14,9 @@ class SensorPreProcessing
     void init();
     void readSensors();
     void compensateIMU();
+    void compensateGyroBias();
+
+    void startGyroBiasEstimation();
     MPU9250 imu = MPU9250(Wire, 0x68);
     Cam cam1, cam2;
     Vector acc, gyro, mag;
@@ -23,5 +26,10 @@ class SensorPreProcessing
 
     bool imu_compensated = false;
     Vector tmp;
+
+    bool gyro_bias_estimation_running = false;
+    data_type gyro_bias_estimation_alpha = 0.001;
+    bool gyro_bias_compensated = false;
+    unsigned long long gyro_bias_estimation_count = 0;
 };
 #endif // SENSOR_PREPROCESSING_HPP

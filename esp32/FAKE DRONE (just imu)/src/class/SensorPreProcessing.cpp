@@ -6,6 +6,23 @@ SensorPreProcessing::SensorPreProcessing()
     gyro.size = 3;
     mag.size = 3;
 
+    acc_bias_co.size = 3;
+    gyro_bias_co.size = 3;
+    mag_bias_co.size = 3;
+
+    acc_scale_co.size = 9;
+    gyro_scale_co.size = 9;
+    mag_scale_co.size = 9;
+
+    acc_scale_co.rows = 3;
+    gyro_scale_co.rows = 3;
+    mag_scale_co.rows = 3;
+    
+    acc_scale_co.cols = 3;
+    gyro_scale_co.cols = 3;
+    mag_scale_co.cols = 3;
+
+
     tmp = Vector(3);
 }
 
@@ -61,6 +78,34 @@ void SensorPreProcessing::readSensors()
     mag.data[2] = imu.getMagZ_uT();
     
     imu_compensated = false;
+    gyro_bias_compensated = false;
+
+    if (gyro_bias_estimation_running)
+    {
+        gyro_bias_estimation_count++;
+        add(tmp, gyro_bias_co, gyro);
+        mul(tmp, tmp, -1.0 / gyro_bias_estimation_count);
+        add(gyro_bias_co, gyro_bias_co, tmp);
+    }
+}
+
+void SensorPreProcessing::startGyroBiasEstimation()
+{
+    gyro_bias_estimation_count = 0;
+    gyro_bias_estimation_running = true;
+    cd(gyro_bias_co, gyro);
+    mul(gyro_bias_co, gyro_bias_co, -1.0);
+}
+
+void SensorPreProcessing::compensateGyroBias()
+{
+    if (gyro_bias_compensated)
+        return;
+
+    //compensate gyroscope
+    add(gyro, gyro, gyro_bias_co);
+
+    gyro_bias_compensated = true;
 }
 
 void SensorPreProcessing::compensateIMU()
@@ -74,11 +119,13 @@ void SensorPreProcessing::compensateIMU()
     cd(acc, tmp);
 
     //compensate gyroscope
-    add(gyro, gyro, gyro_bias_co);
+    if (!gyro_bias_compensated)
+        add(gyro, gyro, gyro_bias_co);
+
     mul(tmp, gyro_scale_co, gyro);
     cd(gyro, tmp);
 
-    // //compensate magnetometer
+    //compensate magnetometer
     add(mag, mag, mag_bias_co);
     mul(tmp, mag_scale_co, mag);
     cd(mag, tmp);
