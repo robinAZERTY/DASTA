@@ -167,16 +167,17 @@ def f(X,U):
         gyro_o = X[22:31].reshape(3,3)
         acc_o = X[13:22].reshape(3,3)
         
+        
         #correction of gyro and acc
         gyro = gyro_o@gyro
         acc = acc_o@(acc+abxyz)
-        
+                
         # integration of linear velocities
         xyz_ = xyz + vxyz*dt_imu
         
         # integration of linear accelerations
         # print("acc = ",acc)
-        qdcm = quat2dcm(q0,qvec)
+        qdcm = quat2dcm(q0,-qvec)
         ae = qdcm@acc
         ae = ae.reshape(3)
         vxyz_ = vxyz + (ae+np.array([0,0,g]))*dt_imu
@@ -373,7 +374,7 @@ def init(ekf):
         ekf.Xn[43:46] = qvec.reshape(3,1)
         ekf.Xn[46] = cam_res/(2*np.tan(cam_AoV/2))
         
-        ekf.Pn[0:10,0:10] = np.zeros((10,10))
+        ekf.Pn[0:10,0:10] = np.zeros((10,10))*0.2
         ekf.Pn[10,10] = acc_xy_bias_tolerance**2
         ekf.Pn[11,11] = acc_xy_bias_tolerance**2
         ekf.Pn[12,12] = acc_z_bias_tolerance**2
@@ -410,12 +411,13 @@ max_dt = 0
 lp_a = 0.01
 lpf_dt = 0
 dt_save = []
+total_time = 0
 
 def predict():
         '''
         predict the state
         '''
-        global dt_imu, last_time, new_proprio, time, gyr, acc, min_dt, max_dt, lpf_dt
+        global dt_imu, last_time, new_proprio, time, gyr, acc, min_dt, max_dt, lpf_dt, total_time
         dt_imu = (time-last_time)/1000.0
         last_time = time
         # print("dt_imu = ",dt_imu)
@@ -433,8 +435,15 @@ def predict():
         
         
          
-         
-          
+        total_time += dt_imu
+        # mapping of total_time [0,100] to [0,1]
+        alpha = total_time/100
+        if (alpha>1):
+                alpha = 1
+        
+
+        ekf.R = np.eye(3) * 0.1
+        # ekf.R *= alpha**2/dt_imu**2
         ekf.Un = np.concatenate((gyr,acc))
         ekf.predict()
         new_proprio = False
@@ -458,7 +467,7 @@ def calibrationTask():
                         predict()
                         ekf.Zn[0:3] = 0
                         ekf.update()
-                        # print(ekf.Xn[6:10])
+                        # print(ekf.Xn.reshape(47))
                 # if new_measure:
                 #         update(beac1_cam1,beac2_cam1,beac1_cam2,beac2_cam2)
                 t.sleep(0.005)

@@ -467,7 +467,7 @@ def saveTask(file):
     while True:
         writeInDB(received_data, file)
         received_data = []
-        time.sleep(0.1)
+        time.sleep(0.05)
 
 data_to_send = []
 def sendTask(s,db):
