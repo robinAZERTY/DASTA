@@ -6,10 +6,19 @@ import asyncio
 import threading
 import os
 import pprint
+from fastapi import FastAPI
+from pydantic import BaseModel
+from fastapi import FastAPI
+
+
+
+app=FastAPI()
+
 pp = pprint.PrettyPrinter(depth=4)
 
-
-
+app.get("/")
+def root():
+ return {"message": "Hello World"}
 
 STD_TYPE_KEY = ['c', 'i', 'Q', 'f', 'd','B']
 VECTOR_KEY = 'v'
@@ -305,6 +314,10 @@ _______________________________________________________
 '''
 
 def open_dbs()->tuple:
+
+    
+
+
     '''
     open the dataBase objects
     return:

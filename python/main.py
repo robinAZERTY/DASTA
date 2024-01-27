@@ -4,6 +4,12 @@ import threading
 import time
 from enum import Enum
 import visu
+from fastapi import FastAPI
+
+
+
+app=FastAPI()
+
 
 '''
     wich is in cpp :
