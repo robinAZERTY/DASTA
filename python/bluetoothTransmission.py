@@ -333,19 +333,18 @@ receive_head :
  {'name': 'velocity', 'size': 12, 'type': 'v'},
  {'name': 'orientation', 'size': 16, 'type': 'v'}]
  
- data received :
- [
- {
-    'time': 123456,
-    'acc': [0.0, 0.0, 0.0],
-    'gyro': [0.0, 0.0, 0.0],
-    'mag': [0.0, 0.0, 0.0],
-    'position': [0.0, 0.0, 0.0],
-    'velocity': [0.0, 0.0, 0.0],
-    'orientation': [0.0, 0.0, 0.0, 0.0] -> qw, qx, qy, qz (quaternion)
- },
- ...
- ]
+ data received you can receive:
+new_data : 
+[
+    {
+        'time': 68280,
+        'acc': [-0.7135084867477417, -0.07182971388101578, 9.86461353302002],
+        'gyro': [-0.0012388820759952068, 0.0030695926398038864, 0.001874104724265635], 
+        'mag': [26.62002182006836, 53.23418426513672, -46.14839553833008]
+    }
+]
+
+ 
 send_head :
 [{'name': 'acc_bias', 'size': 12, 'type': 'v'},
  {'name': 'gyro_bias', 'size': 12, 'type': 'v'},
@@ -497,6 +496,7 @@ def receiveTask(s):
     global received_data
     while True:
         new_data = receive(s)
+        print("new_data : " + str(new_data))
         if receive_head is None:
             continue
         if new_data is not None:
