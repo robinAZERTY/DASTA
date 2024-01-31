@@ -1,9 +1,9 @@
-#include "Ekf.hpp"
+#include "ekf.hpp"
 
 Matrix *Ekf::tmp1;
 Matrix *Ekf::tmp2;
-Matrix *Ekf::Min;
-Vector *Ekf::Vin;
+Matrix *Ekf::feedM;
+Vector *Ekf::feedV;
 
 Ekf::Ekf(Matrix_f2 f, Matrix_f1 h[], uint_fast8_t x_dim, uint_fast8_t z_dim[], uint_fast8_t u_dim, Matrix_f2 Fx, Matrix_f2 Fu, Matrix_f1 H[], uint_fast8_t z_num)
 {
@@ -25,7 +25,7 @@ Ekf::Ekf(Matrix_f2 f, Matrix_f1 h[], uint_fast8_t x_dim, uint_fast8_t z_dim[], u
         this->z[i] = new Vector(z_dim[i]);
         this->h_val[i] = new Vector(z_dim[i]);
         this->R[i] = new Matrix(z_dim[i], z_dim[i]);
-        this->R[i]->set_eye();
+        this->R[i]->fill(0);
         if (z_dim[i] > max_z_dim)
             max_z_dim = z_dim[i];
     }
@@ -33,12 +33,12 @@ Ekf::Ekf(Matrix_f2 f, Matrix_f1 h[], uint_fast8_t x_dim, uint_fast8_t z_dim[], u
     this->x = new Vector(x_dim);
 
     this->P = new Matrix(x_dim, x_dim);
-    this->P->set_eye();
+    this->P->fill(0);
 
     this->h = h;
     this->H = H;
     this->Q = new Matrix(u_dim, u_dim);
-    this->Q->set_eye();
+    this->Q->fill(0);
     this->I = new Matrix(x_dim, x_dim);
     this->I->set_eye();
 
@@ -47,14 +47,13 @@ Ekf::Ekf(Matrix_f2 f, Matrix_f1 h[], uint_fast8_t x_dim, uint_fast8_t z_dim[], u
     this->Fu = Fu;
     this->K = new Matrix(x_dim, max_z_dim);
     this->S = new Matrix(max_z_dim, max_z_dim);
+    
 
     this->Fx_val = new Matrix(x_dim, x_dim);
     this->Fu_val = new Matrix(x_dim, u_dim);
     this->H_val = new Matrix(max_z_dim, x_dim);
 
     this->y = new Vector(max_z_dim);
-
-    this->z_available = new bool[z_num];
 
     int max_dim = (x_dim > max_z_dim) ? x_dim : max_z_dim;
     max_dim = (max_dim > u_dim) ? max_dim : u_dim;
@@ -99,17 +98,10 @@ Ekf::~Ekf()
     delete this->y;
     delete this->utmp;
     delete this->h_val;
-    delete this->z_available;
 }
 
-void Ekf::predict()
+void Ekf::compute_Fx_Fu()
 {
-    cd(*tmp2, *x);
-
-    // x<- f(x,u)
-    Vin = x;
-    f(*x, *u, *c);
-
     uint16_t tmp2_size = tmp2->size;
     uint16_t tmp1_size = tmp1->size;
     tmp2->size = x_dim;
@@ -117,7 +109,7 @@ void Ekf::predict()
 
     if (Fx != nullptr)
     {
-        Min = Fx_val;
+        feedM = Fx_val;
         Fx(*x, *u, *c);
     }
     else
@@ -125,7 +117,7 @@ void Ekf::predict()
 
     if (Fu != nullptr)
     {
-        Min = Fu_val;
+        feedM = Fu_val;
         Fu(*x, *u, *c);
     }
     else
@@ -133,6 +125,17 @@ void Ekf::predict()
 
     tmp2->size = tmp2_size;
     tmp1->size = tmp1_size;
+}
+
+void Ekf::predict()
+{
+    cd(*tmp2, *x);
+
+    // x<- f(x,u)
+    feedV = x;
+    f(*tmp2, *u, *c);
+
+    compute_Fx_Fu();
 
     // P<- Fx*P*Fx'
     tmp1->cols = x_dim;
@@ -157,11 +160,17 @@ void Ekf::predict()
     add(*P, *P, *tmp2);
 }
 
-void Ekf::update(const uint8_t iz)
+void Ekf::predictMeasurement(const uint8_t iz)
+{
+    feedV = h_val[iz]; // set h_val[iz] as output
+    h[iz](*x, *c);
+}
+
+void Ekf::update(const uint8_t iz, const bool predictMeasurment)
 {
     // y<- z-h(x)
-    Vin = h_val[iz];
-    h[iz](*x, *c);
+    predictMeasurement(iz);
+
     y->size = z_dim[iz];
     sub(*y, *z[iz], *h_val[iz]);
 
@@ -176,7 +185,7 @@ void Ekf::update(const uint8_t iz)
             
     if (!use_finite_diff)
     {
-        Min = H_val;
+        feedM = H_val;
         H[iz](*x, *c);
     }
     else
@@ -195,7 +204,7 @@ void Ekf::update(const uint8_t iz)
     S->cols = z_dim[iz];
     S->rows = z_dim[iz];
     mul(*S, *tmp1, *H_val);
-    add(*S, *S, *(R[iz]));
+    add(*S, *S, *R[iz]);
 
     // K<- P*H'*S^-1
     tmp1->cols = z_dim[iz];
@@ -231,7 +240,7 @@ void Ekf::finite_diff_Fx(const uint8_t i, const data_type eps)
 
     tmp1->data[i] += eps;
 
-    Vin = tmp1;
+    feedV = tmp1;
     f(*tmp1, *u, *c);
 
     sub(*tmp1, *tmp1, *x);
@@ -247,7 +256,7 @@ void Ekf::finite_diff_Fu(const uint8_t i, const data_type eps)
 
     utmp->data[i] += eps;
 
-    Vin = tmp1;
+    feedV = tmp1;
     f(*tmp2, *utmp, *c);
 
     sub(*tmp1, *tmp1, *x);
@@ -263,7 +272,7 @@ void Ekf::finite_diff_H(const uint8_t iz, const uint8_t i, const data_type eps)
 
     tmp1->data[i] += eps;
 
-    Vin = tmp2;
+    feedV = tmp2;
     h[iz](*tmp1, *c);
 
     sub(*tmp2, *tmp2, *(h_val[iz]));
