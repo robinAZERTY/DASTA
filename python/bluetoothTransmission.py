@@ -321,6 +321,49 @@ _______________________________________________________
 _____________________WRITE IN DB_______________________
 _______________________________________________________
 '''
+
+'''
+receive_head 
+receive_head : 
+[{'name': 'time', 'size': 8, 'type': 'Q'}, 
+ {'name': 'acc', 'size': 12, 'type': 'v'},
+ {'name': 'gyro', 'size': 12, 'type': 'v'},
+ {'name': 'mag', 'size': 12, 'type': 'v'},
+ {'name': 'position', 'size': 12, 'type': 'v'},
+ {'name': 'velocity', 'size': 12, 'type': 'v'},
+ {'name': 'orientation', 'size': 16, 'type': 'v'}]
+ 
+ data received :
+ [
+ {
+    'time': 123456,
+    'acc': [0.0, 0.0, 0.0],
+    'gyro': [0.0, 0.0, 0.0],
+    'mag': [0.0, 0.0, 0.0],
+    'position': [0.0, 0.0, 0.0],
+    'velocity': [0.0, 0.0, 0.0],
+    'orientation': [0.0, 0.0, 0.0, 0.0] -> qw, qx, qy, qz (quaternion)
+ },
+ ...
+ ]
+send_head :
+[{'name': 'acc_bias', 'size': 12, 'type': 'v'},
+ {'name': 'gyro_bias', 'size': 12, 'type': 'v'},
+ {'name': 'mag_bias', 'size': 12, 'type': 'v'},
+ {'name': 'acc_scale', 'row': 3, 'size': 36, 'type': 'm'},
+ {'name': 'gyro_scale', 'row': 3, 'size': 36, 'type': 'm'},
+ {'name': 'mag_scale', 'row': 3, 'size': 36, 'type': 'm'},
+ {'name': 'led1_pos', 'size': 12, 'type': 'v'},
+ {'name': 'led2_pos', 'size': 12, 'type': 'v'},
+ {'name': 'cam1_pos', 'size': 12, 'type': 'v'},
+ {'name': 'cam1_or', 'size': 16, 'type': 'v'},
+ {'name': 'cam1_k', 'size': 4, 'type': 'f'},
+ {'name': 'cam2_pos', 'size': 12, 'type': 'v'},
+ {'name': 'cam2_or', 'size': 16, 'type': 'v'},
+ {'name': 'cam2_k', 'size': 4, 'type': 'f'},
+ {'name': 'user_event', 'size': 1, 'type': 'B'},
+ {'name': 'send_stream_delay', 'size': 4, 'type': 'i'}]
+'''
 def writeInDB(data,db)->None:
     '''
     add the data to the dataBase while keeping the old data
@@ -340,7 +383,6 @@ _______________________________________________________
 _____________________READ USER IN______________________
 _______________________________________________________
 '''
-  
 
 def userInput(send_head,db)->dict:
     '''
@@ -460,6 +502,7 @@ def receiveTask(s):
         if new_data is not None:
             received_data.append(new_data)
         #to let the other threads run
+    
         time.sleep(0.001)
                     
 def saveTask(file):

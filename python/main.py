@@ -79,8 +79,8 @@ def linkCalib_and_Visu():
     #create the visu
     clock = visu.pygame.time.Clock()
     while True:
-        # visu.draw_cube(visu.Quaternion(calibration.ekf.Xn[6], calibration.ekf.Xn[7], calibration.ekf.Xn[8], calibration.ekf.Xn[9]))
-        visu.draw_Cov(calibration.ekf.Pn)
+        visu.draw_cube(visu.Quaternion(calibration.ekf.Xn[6], calibration.ekf.Xn[7], calibration.ekf.Xn[8], calibration.ekf.Xn[9]))
+        # visu.draw_Cov(calibration.ekf.Pn)
         # On affiche le résultat
         visu.pygame.display.flip()
         # On attend 10 ms avant de recommencer
