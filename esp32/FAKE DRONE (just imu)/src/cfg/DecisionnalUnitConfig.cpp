@@ -11,6 +11,8 @@ enum UserEvent : uint8_t
     DisableStateEstimateStream,
     EnableSensorStream,
     DisableSensorStream,
+    StartGyroBiasEstimation,
+    StopGyroBiasEstimation,
 };
 
 
@@ -51,6 +53,12 @@ void Dasta::runDecisionOnUserEvent()
         communication.send_stream.disable("acc");
         communication.send_stream.disable("gyro");
         communication.send_stream.disable("mag");
+        break;
+    case UserEvent::StartGyroBiasEstimation:
+        sensors.startGyroBiasEstimation();
+        break;
+    case UserEvent::StopGyroBiasEstimation:
+        sensors.gyro_bias_estimation_running = false;
         break;
     default:
         break;

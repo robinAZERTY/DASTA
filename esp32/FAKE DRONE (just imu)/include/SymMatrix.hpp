@@ -1,7 +1,7 @@
 #ifndef SYM_MATRIX_HPP
 #define SYM_MATRIX_HPP
 
-    //the data is stored in a lower triangular matrix in row major order like this:
+    //the data are stored in a lower triangular matrix in row major order like this:
     // matrix:
     // 0 1 3
     // 1 2 4
