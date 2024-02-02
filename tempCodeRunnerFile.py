@@ -1,1 +1,2 @@
-getEndPoints
+toid in centoids:
+        #         cv2.
