@@ -18,9 +18,11 @@ private:
     void configureStateEstimate();
 
 public:
-    Dasta();
+    Dasta(){};
     ~Dasta(){};
+    void init();
     void runDecisionOnUserEvent();
+    void runStateEstimate();
     SensorPreProcessing sensors;
     Communication communication;
     Actuators actuators;

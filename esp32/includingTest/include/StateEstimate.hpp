@@ -6,16 +6,17 @@
 class StateEstimate
 {
 private:
-    float last_time_proprio=-1;
     float last_time_extero=-1;
 
 public:
+    float last_time_proprio=-1;
     data_type gravity;
     bool running = false;
     StateEstimate();
     ~StateEstimate();
-    void run(const float time);
     float dt_proprio; // période mesuré d'échantillonnage des capteurs proprio
+    Vector command;
+    SymMatrix command_cov;
     Ekf ekf;
     Vector position;
     Vector velocity;

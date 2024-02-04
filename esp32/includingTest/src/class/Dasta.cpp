@@ -1,8 +1,11 @@
 #include "Dasta.hpp"
 
 
-Dasta::Dasta()
+void Dasta::init()
 {
+    while (!Serial)
+        delay(10);
+        
     configureStateEstimate();
     configSensorPreProcessing();
     configCommunication();

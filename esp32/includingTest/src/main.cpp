@@ -113,6 +113,9 @@ void setup()
     xSemaphoreGive(xSemaphore);
 
   Serial.begin(115200); // for more speed, use 921600
+
+  dasta.init();
+
   dasta.communication.device_name = "ESP32-Bluetooth";
   dasta.communication.start();
   dasta.sensors.init();
@@ -121,7 +124,7 @@ void setup()
   xTaskCreatePinnedToCore(
       stateEstimateTask,        /* Function to implement the task */
       "stateEstimateTask",      /* Name of the task */
-      1500,                     /* Stack size in words */
+      15000,                     /* Stack size in words */
       NULL,                     /* Task input parameter */
       0,                        /* Priority of the task , the lower the more priority*/
       &stateEstimateTaskHandle, /* Task handle. */
@@ -130,7 +133,7 @@ void setup()
   xTaskCreatePinnedToCore(
       communicationTask,        /* Function to implement the task */
       "communicationTask",      /* Name of the task */
-      900,                      /* Stack size in words */
+      9000,                      /* Stack size in words */
       NULL,                     /* Task input parameter */
       1,                        /* Priority of the task */
       &communicationTaskHandle, /* Task handle. */
@@ -139,7 +142,7 @@ void setup()
   xTaskCreatePinnedToCore(
       printTask,        /* Function to implement the task */
       "printTask",      /* Name of the task */
-      1500,             /* Stack size in words */
+      15000,             /* Stack size in words */
       NULL,             /* Task input parameter */
       2,                /* Priority of the task */
       &printTaskHandle, /* Task handle. */

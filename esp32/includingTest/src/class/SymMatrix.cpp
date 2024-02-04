@@ -503,6 +503,120 @@ void sym_matrix::mul(SymMatrix &res, const Matrix &a, const SymMatrix &b)
     }
 #endif
 }
+void sym_matrix::add_mul(SymMatrix &res, const Matrix &a, const Matrix &b)
+{
+#ifndef SPY
+    uint_fast8_t i, j, k, l = 0;
+    uint_fast8_t &ai = (a.transposed) ? k : i, &ak = (a.transposed) ? i : k, ac = (a.transposed) ? a.rows : a.cols;
+    uint_fast8_t &bk = (b.transposed) ? j : k, &bj = (b.transposed) ? k : j, bc = (b.transposed) ? b.rows : b.cols;
+    data_type sum;
+    for (i = 0; i < a.rows; i++)
+        for (j = 0; j <= i; j++)
+        {
+            sum = 0;
+            for (k = 0; k < a.cols; k++)
+                sum += a.data[ai * ac + ak] * b.data[bk * bc + bj];
+            res.data[l] += sum;
+            l++;
+        }
+#else
+    spy.func_call++;
+    spy.affect += 8;
+    spy.declaration += 11;
+    uint_fast8_t i, j, k, l = 0;
+    uint_fast8_t &ai = (a.transposed) ? k : i, &ak = (a.transposed) ? i : k, ac = (a.transposed) ? a.rows : a.cols;
+    uint_fast8_t &bk = (b.transposed) ? j : k, &bj = (b.transposed) ? k : j, bc = (b.transposed) ? b.rows : b.cols;
+    data_type sum;
+    for (i = 0; i < a.rows; i++)
+    {
+        spy.bool_op += 2;
+        spy.add++;
+        spy.affect += 2;
+        for (j = 0; j <= i; j++)
+        {
+            spy.bool_op += 2;
+            spy.add++;
+            spy.affect += 3;
+            sum = 0;
+            for (k = 0; k < a.cols; k++)
+            {
+                spy.bool_op += 2;
+                spy.add++;
+                spy.affect++;
+                sum += a.data[ai * ac + ak] * b.data[bk * bc + bj];
+                spy.access += 2;
+                spy.add += 3;
+                spy.mul += 3;
+                spy.affect++;
+            }
+            res.data[l] += sum;
+            spy.access++;
+            spy.affect++;
+            l++;
+            spy.add+=2;
+            spy.affect++;
+        }
+    }
+#endif
+}
+
+void sym_matrix::sub_mul(SymMatrix &res, const Matrix &a, const Matrix &b)
+{
+#ifndef SPY
+    uint_fast8_t i, j, k, l = 0;
+    uint_fast8_t &ai = (a.transposed) ? k : i, &ak = (a.transposed) ? i : k, ac = (a.transposed) ? a.rows : a.cols;
+    uint_fast8_t &bk = (b.transposed) ? j : k, &bj = (b.transposed) ? k : j, bc = (b.transposed) ? b.rows : b.cols;
+    data_type sum;
+    for (i = 0; i < a.rows; i++)
+        for (j = 0; j <= i; j++)
+        {
+            sum = 0;
+            for (k = 0; k < a.cols; k++)
+                sum += a.data[ai * ac + ak] * b.data[bk * bc + bj];
+            res.data[l] -= sum;
+            l++;
+        }
+#else
+    spy.func_call++;
+    spy.affect += 8;
+    spy.declaration += 11;
+    uint_fast8_t i, j, k, l = 0;
+    uint_fast8_t &ai = (a.transposed) ? k : i, &ak = (a.transposed) ? i : k, ac = (a.transposed) ? a.rows : a.cols;
+    uint_fast8_t &bk = (b.transposed) ? j : k, &bj = (b.transposed) ? k : j, bc = (b.transposed) ? b.rows : b.cols;
+    data_type sum;
+    for (i = 0; i < a.rows; i++)
+    {
+        spy.bool_op += 2;
+        spy.add++;
+        spy.affect += 2;
+        for (j = 0; j <= i; j++)
+        {
+            spy.bool_op += 2;
+            spy.add++;
+            spy.affect += 3;
+            sum = 0;
+            for (k = 0; k < a.cols; k++)
+            {
+                spy.bool_op += 2;
+                spy.add++;
+                spy.affect++;
+                sum += a.data[ai * ac + ak] * b.data[bk * bc + bj];
+                spy.access += 2;
+                spy.add += 3;
+                spy.mul += 3;
+                spy.affect++;
+            }
+            res.data[l] -= sum;
+            spy.access++;
+            spy.affect++;
+            l++;
+            spy.add++;
+            spy.sub++;
+            spy.affect++;
+        }
+    }
+#endif
+}
 
 bool sym_matrix::det(data_type &res, SymMatrix &a, bool force)
 {

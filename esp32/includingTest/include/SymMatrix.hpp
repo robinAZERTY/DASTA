@@ -47,7 +47,12 @@ namespace sym_matrix
     void mul(SymMatrix &res, const Matrix &a, const SymMatrix &b);
     void mul(Vector &res, const SymMatrix &a, const Vector &b);
 
+    //res <- res + a*b
+    void add_mul(SymMatrix &res, const Matrix &a, const Matrix &b);
 
+    //res <- res - a*b
+    void sub_mul(SymMatrix &res, const Matrix &a, const Matrix &b);
+    
     /*
     res<-det(a)
     direct calculation of the determinant for small matrices

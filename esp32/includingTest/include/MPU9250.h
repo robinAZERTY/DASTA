@@ -22,9 +22,12 @@
 #ifndef MPU9250_h
 #define MPU9250_h
 
+
 #include "Arduino.h"
 #include "Wire.h"    // I2C library
 #include "SPI.h"     // SPI library
+
+#include "Matrix.hpp"
 
 class MPU9250{
   public:
@@ -66,8 +69,11 @@ class MPU9250{
       LP_ACCEL_ODR_250HZ = 10,
       LP_ACCEL_ODR_500HZ = 11
     };
-    MPU9250(TwoWire &bus,uint8_t address);
-    MPU9250(SPIClass &bus,uint8_t csPin);
+    MPU9250();
+    void set(TwoWire &bus,uint8_t address);
+    void set(SPIClass &bus,uint8_t csPin);
+    MPU9250(TwoWire &bus,uint8_t address){set(bus,address);};
+    MPU9250(SPIClass &bus,uint8_t csPin){set(bus,csPin);};
     int begin();
     int setAccelRange(AccelRange range);
     int setGyroRange(GyroRange range);
@@ -77,20 +83,17 @@ class MPU9250{
     int disableDataReadyInterrupt();
     int enableWakeOnMotion(float womThresh_mg,LpAccelOdr odr);
     int readSensor();
-    float getAccelX_mss();
-    float getAccelY_mss();
-    float getAccelZ_mss();
-    float getGyroX_rads();
-    float getGyroY_rads();
-    float getGyroZ_rads();
-    float getMagX_uT();
-    float getMagY_uT();
-    float getMagZ_uT();
+    void compensate();
     float getTemperature_C();
     const unsigned long long &getTime(){return _time;};
-    
+    Vector acc, gyro, mag;
+    bool fresh_data = false;
+    Vector acc_bias_co, gyro_bias_co, mag_bias_co;    // bias vector (3x1)
+    Matrix acc_scale_co, gyro_scale_co, mag_scale_co; // scale matrix (3x3)
+    bool compensated = false;
     
   protected:
+    Vector tmp;
     unsigned long long _time;
     // i2c
     uint8_t _address;
@@ -115,9 +118,9 @@ class MPU9250{
     int16_t _hxcounts,_hycounts,_hzcounts;
     int16_t _tcounts;
     // data buffer
-    float _ax, _ay, _az;
-    float _gx, _gy, _gz;
-    float _hx, _hy, _hz;
+    // float _ax, _ay, _az;
+    // float _gx, _gy, _gz;
+    // float _hx, _hy, _hz;
     float _t;
     // wake on motion
     uint8_t _womThreshold;
