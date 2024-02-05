@@ -3,8 +3,6 @@ import numpy as np
 from skimage.morphology import skeletonize
 import time
 
-cap = cv2.VideoCapture('WIN_20240117_13_11_07_Pro.mp4')
-
 #structure "entity" pour stocker des informations sur un segment de l'image
 class Entity:
     def __init__(self, centoid, endPoints, distances, skeletonLength):
@@ -114,6 +112,9 @@ def process(grayScale,expectedEntities):
         
    
 ledNumber = 2 #nombre de leds attendues
+
+cap = cv2.VideoCapture('WIN_20240117_13_11_07_Pro.mp4')
+
 while(cap.isOpened()):
     
     ret,originalFrame = cap.read()
