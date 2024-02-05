@@ -18,6 +18,7 @@ BLACK = (0, 0, 0)
 
 dist2cam = 0.5
 
+
 side = 0.1
 
 cube_vertices = np.array([[-1, -1, -1],
@@ -31,9 +32,9 @@ cube_vertices = np.array([[-1, -1, -1],
 
 
 
-def draw_cube(X):
-    q = Quaternion(X[6], X[7], X[8], X[9])
-    p = X[0:3].reshape(3)
+def draw_cube(postion, orientation, leds_location_in_img):
+    q = Quaternion(orientation[0], orientation[1], orientation[2], orientation[3])
+    p = postion
     # On efface l'écran
     screen.fill(WHITE)
     # On tourne le cube
@@ -54,19 +55,24 @@ def draw_cube(X):
                          (width / 2 + cube_vertices_projected[j][0] * width / 3,
                           height / 2 + cube_vertices_projected[j][1] * width / 3))
         
+    #on ajoute l'affichage des leds
+    if leds_location_in_img is not None:
+        for led in leds_location_in_img:
+            pygame.draw.circle(screen, BLACK, (led[0]+width/2, led[1]+height/2), 5)
+        
     #on ajoute l'affichage des matrices de calibration
-    txt = "acc_ortho_correction:"
-    font = pygame.font.Font('freesansbold.ttf', 12)
-    text = font.render(txt, True, BLACK, WHITE)
-    textRect = text.get_rect()
-    textRect.center = (width // 2, height // 2 + 120)
-    screen.blit(text, textRect)
-    for i in range(3):
-        txt  = np.array2string(X[13+i*3:13+i*3+3].reshape(3), precision=3, separator=',')
-        text = font.render(txt, True, BLACK, WHITE)
-        textRect = text.get_rect()
-        textRect.center = (width // 2, height // 2 + 140 + i*20)
-        screen.blit(text, textRect)
+    # txt = "acc_ortho_correction:"
+    # font = pygame.font.Font('freesansbold.ttf', 12)
+    # text = font.render(txt, True, BLACK, WHITE)
+    # textRect = text.get_rect()
+    # textRect.center = (width // 2, height // 2 + 120)
+    # screen.blit(text, textRect)
+    # for i in range(3):
+    #     txt  = np.array2string(X[13+i*3:13+i*3+3].reshape(3), precision=3, separator=',')
+    #     text = font.render(txt, True, BLACK, WHITE)
+    #     textRect = text.get_rect()
+    #     textRect.center = (width // 2, height // 2 + 140 + i*20)
+    #     screen.blit(text, textRect)
     
     
     

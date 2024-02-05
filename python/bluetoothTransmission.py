@@ -245,7 +245,7 @@ def unpackLine(line, header):
 receive_head = None
 receive_buffer = b''
 
-DEBUG = True
+DEBUG = False
 
 def receive(s):
     datas = []
@@ -458,7 +458,6 @@ def receiveTask(s):
         if receive_head is None:
             continue
         if new_data is not None:
-            print("received : " + str(new_data))
             received_data.append(new_data)
         #to let the other threads run
         time.sleep(0.001)
