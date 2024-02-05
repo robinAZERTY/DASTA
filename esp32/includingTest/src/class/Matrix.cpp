@@ -217,6 +217,49 @@ void matrix::mul(Vector &res, const Matrix &a, const Vector &b)
 #endif
 }
 
+void matrix::mul_add(Vector &res, const Matrix &a, const Vector &b)
+{
+#ifdef SPY
+    spy.func_call++;
+    spy.declaration += 5;
+    uint_fast8_t i, k;
+    uint_fast8_t &ai = (a.transposed) ? k : i, &ak = (a.transposed) ? i : k, ac = (a.transposed) ? a.rows : a.cols;
+    data_type sum;
+    for (i = 0; i < a.rows; i++)
+    {
+        spy.add++;
+        spy.affect += 3;
+        spy.bool_op += 2;
+        spy.access++;
+
+        sum = 0;
+        for (k = 0; k < a.cols; k++)
+        {
+            spy.add += 3;
+            spy.affect += 2;
+            spy.bool_op += 2;
+            spy.access += 2;
+            spy.mul++;
+            sum += a.data[ai * ac + ak] * b.data[k];
+        }
+        res.data[i] += sum;
+    }
+#else
+    uint_fast8_t i, k;
+    uint_fast8_t &ai = (a.transposed) ? k : i, &ak = (a.transposed) ? i : k, ac = (a.transposed) ? a.rows : a.cols;
+    data_type sum;
+    for (i = 0; i < a.rows; i++)
+    {
+        sum = 0;
+        for (k = 0; k < a.cols; k++)
+        {
+            sum += a.data[ai * ac + ak] * b.data[k];
+        }
+        res.data[i] += sum;
+    }
+#endif
+}
+
 void matrix::refd(Matrix &res, const Matrix &a)
 {
     res.data = a.data;

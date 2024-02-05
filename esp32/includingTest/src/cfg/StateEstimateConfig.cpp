@@ -195,20 +195,19 @@ void Dasta::configureStateEstimate()
     sensors.cam = new Cam[CAM_N];
     for (uint_fast8_t i = 0; i < CAM_N; i++)
     {
-        sensors.cam[i].led_predictions = new Vector[LED_N];
-        sensors.cam[i].led_predictions_cov = new SymMatrix[LED_N];
-        sensors.cam[i].led_predictions_cov_inv = new SymMatrix[LED_N];
-        sensors.cam[i].led_predictions_jac = new Matrix[LED_N];
         sensors.cam[i].noise_cov.alloc(2);
-        sensors.cam[i].noise_cov.fill(0);
-        sensors.cam[i].noise_cov(0, 0) = CAM_VAR;
-        sensors.cam[i].noise_cov(1, 1) = CAM_VAR;
+        sensors.cam[i].led_predictions = new Vector[LED_N];
+        sensors.cam[i].led_predictions_cov_inv = new SymMatrix[LED_N];
+        sensors.cam[i].led_predictions_PH_t = new Matrix[LED_N];
+
+        sensors.cam[i].noise_cov(0, 0) = 1/CAM_VAR;
+        sensors.cam[i].noise_cov(1, 1) = 1/CAM_VAR;
+
         for (uint_fast8_t j = 0; j < LED_N; j++)
         {
             sensors.cam[i].led_predictions[j].alloc(2);
-            sensors.cam[i].led_predictions_cov[j].alloc(2);
+            sensors.cam[i].led_predictions_PH_t[j].alloc(X_DIM,2);
             sensors.cam[i].led_predictions_cov_inv[j].alloc(2);
-            sensors.cam[i].led_predictions_jac[j].alloc(2, X_DIM);
         }
     }
 }
@@ -241,12 +240,13 @@ void Dasta::runStateEstimate()
                     drone_pos.data = x.data;
                     drone_orien.data = x.data + 6;
                     sensors.cam[i].project(res, actuators.led[j].position, drone_orien, drone_pos);};
-                estimator.ekf.predictMeasurment(h, sensors.cam[i].led_predictions[j], sensors.cam[i].noise_cov, sensors.cam[i].led_predictions_cov[j], &sensors.cam[i].led_predictions_jac[j], &sensors.cam[i].led_predictions_cov_inv[j]);
+
+                estimator.ekf.predictMeasurment(h,sensors.cam[i].noise_cov,sensors.cam[i].led_predictions[j],sensors.cam[i].led_predictions_cov_inv[j], sensors.cam[i].led_predictions_PH_t[j]);
             }
             
             for (uint_fast8_t k = 0; k < sensors.cam[i].measurments_num; k++)
             {
-                // predict the position of the leds in the camera frame
+                // identificate the led
 
             }
         }

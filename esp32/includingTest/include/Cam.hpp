@@ -19,12 +19,13 @@ public:
 
     //for the ekf
     SymMatrix noise_cov;
+
     // for every led
     Vector *led_predictions;
-    SymMatrix *led_predictions_cov;
+    Matrix *led_predictions_PH_t;
     SymMatrix *led_predictions_cov_inv;
-    Matrix *led_predictions_jac;
 
+    // for every led
     Vector *measurments;// les position we read from the cameras
     uint_fast8_t measurments_num=0;
     uint_fast8_t measurments_alloc=0;

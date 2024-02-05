@@ -51,13 +51,11 @@ class Ekf
         void predict(T f, Vector &u, const SymMatrix &Q);
 
         template <typename T>
-        void predictMeasurment(T h, Vector &h_pred, const SymMatrix &R, SymMatrix &S, Matrix *H = nullptr, SymMatrix *S_inv = nullptr);
+        void predictMeasurment(T h, const SymMatrix &R, Vector &h_pred, SymMatrix &S_inv, Matrix &PH_t);
 
-        template <typename T>
-        const data_type mahalanobis(T h, const Vector &z, const SymMatrix &R, Vector &h_pred, SymMatrix &S, Matrix *H = nullptr, SymMatrix *S_inv = nullptr, const bool use_h_pred = false, const bool use_H = false, const bool use_S_inv=false);
+        const data_type mahalanobis(const Vector &h_pred, const SymMatrix &S_inv, const Vector &z);
 
-        template <typename T>
-        void update(T h, const Vector &z, const SymMatrix &R, Vector &h_pred, SymMatrix &S, Matrix *H = nullptr, SymMatrix *S_inv = nullptr, const bool use_h_pred = false);
+        void update(const Vector &z, const Vector &h_pred, const SymMatrix &S_inv, Matrix &PH_t);
 
 };
 

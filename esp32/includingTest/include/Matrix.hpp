@@ -46,6 +46,9 @@ namespace matrix
 void mul(Matrix &res, const Matrix &a, const Matrix &b);
 void mul(Vector &res, const Matrix &a, const Vector &b);
 
+// res += a*b
+void mul_add(Vector &res, const Matrix &a, const Vector &b);
+
 // res<-a^(-1), this function will modify 'a'
 bool inv(Matrix &res, Matrix &a);
 

@@ -60,7 +60,7 @@ void Ekf::predict(T f, Vector &u, const SymMatrix &Q)
     { f(res, x, u); };
     // predict the covariance
     jacobian(tmp1, fx, prev_x, x);
-    // cout << " J = " << tmp1 << endl;
+
     tmp2.rows = x_dim;
     tmp2.cols = x_dim;
     sym_matrix::mul(tmp2, tmp1, P);
@@ -81,111 +81,43 @@ void Ekf::predict(T f, Vector &u, const SymMatrix &Q)
 }
 
 template <typename T>
-void Ekf::predictMeasurment(T h, Vector &h_pred, const SymMatrix &R, SymMatrix &S, Matrix *H, SymMatrix *S_inv)
+void Ekf::predictMeasurment(T h, const SymMatrix &R, Vector &h_pred, SymMatrix &S_inv, Matrix &PH_t)
 {
+    //predict the measurement
     h(h_pred, x);
+
+    //compute the jacobian
     jacobian(tmp1, h, x, h_pred);
 
-    if (H != nullptr)
-    {
-        const uint_fast8_t tmp1_size = tmp1.size;
-        tmp1.size = h_pred.size * x_dim;
-        vector::cd(*H, tmp1);
-        tmp1.size = tmp1_size;
-    }
-
-    tmp2.rows = x_dim;
-    tmp2.cols = z.size;
+    //compute P*H^T
     tmp1.transpose();
-    sym_matrix::mul(tmp2, P, tmp1);
+    sym_matrix::mul(PH_t, P, tmp1);
     tmp1.transpose();
-    sym_matrix::mul(S, tmp1, tmp2);
-    vector::add(S, S, R);
 
-    if (z.size > y.size)
-        y.alloc(z.size);
+    //prepare the S matrix (measurment predition covariance matrix)
+    if (tmpLdl.size < R.size)
+        tmpLdl.alloc(R.order);
 
-    vector::sub(y, z, h_pred);
+    //compute S
+    sym_matrix::mul(tmpLdl, tmp1, PH_t);
+    vector::add(tmpLdl, tmpLdl, R);
 
-    if (tmpLdl.size < S.size)
-        tmpLdl.alloc(S.order);
-
-    vector::cd(tmpLdl, S); // copy S to tmpLdl to save the original S
-
-    uint_fast8_t tmp1_size = tmp1.size;
-    tmp1.size = z.size;
-
-    if (S_inv != nullptr)
-    {
-        ldl_matrix::inv(*S_inv, tmpLdl);
-        sym_matrix::mul(tmp1, *S_inv, y);
-    }
-    else
-    {
-        tmpSym.order = S.order;
-        ldl_matrix::inv(tmpSym, tmpLdl);
-        sym_matrix::mul(tmp1, tmpSym, y);
-    }
+    //compute S^(-1)
+    ldl_matrix::inv(S_inv, tmpLdl);
 }
 
-template <typename T>
-const data_type Ekf::mahalanobis(T h, const Vector &z, const SymMatrix &R, Vector &h_pred, SymMatrix &S, Matrix *H, SymMatrix *S_inv, const bool use_h_pred, const bool use_H, const bool use_S_inv)
+const data_type Ekf::mahalanobis(const Vector &h_pred, const SymMatrix &S_inv, const Vector &z)
 {
-    if (!use_h_pred)
-        h(h_pred, x);
-
-    if (use_H and H != nullptr)
-        vector::cd(tmp1, *H);
-    else
-        jacobian(tmp1, h, x, h_pred);
-
-    if (H != nullptr)
-    {
-        const uint_fast8_t tmp1_size = tmp1.size;
-        tmp1.size = z.size * x_dim;
-        vector::cd(*H, tmp1);
-        tmp1.size = tmp1_size;
-    }
-
-    tmp2.rows = x_dim;
-    tmp2.cols = z.size;
-    tmp1.transpose();
-    sym_matrix::mul(tmp2, P, tmp1);
-    tmp1.transpose();
-    sym_matrix::mul(S, tmp1, tmp2);
-    vector::add(S, S, R);
-
-    if (z.size > y.size)
+    if (y.size < z.size)
         y.alloc(z.size);
 
+    y.size = z.size;
     vector::sub(y, z, h_pred);
 
-    if (!use_S_inv)
-    {
-        if (tmpLdl.size < S.size)
-            tmpLdl.alloc(S.order);
+    const uint_fast8_t tmp1_size = tmp1.size;
+    tmp1.size = h_pred.size * x_dim;
+    sym_matrix::mul(tmp1, S_inv, y);
 
-        vector::cd(tmpLdl, S); // copy S to tmpLdl to save the original S
-
-        uint_fast8_t tmp1_size = tmp1.size;
-        tmp1.size = z.size;
-
-        if (S_inv != nullptr)
-        {
-            ldl_matrix::inv(*S_inv, tmpLdl);
-            sym_matrix::mul(tmp1, *S_inv, y);
-        }
-        else
-        {
-            tmpSym.order = S.order;
-            ldl_matrix::inv(tmpSym, tmpLdl);
-            sym_matrix::mul(tmp1, tmpSym, y);
-        }
-    }
-    else
-    {
-        sym_matrix::mul(tmp1, *S_inv, y);
-    }
     data_type res;
     vector::mul(res, y, tmp1);
     tmp1.size = tmp1_size;
@@ -193,66 +125,31 @@ const data_type Ekf::mahalanobis(T h, const Vector &z, const SymMatrix &R, Vecto
     return res;
 }
 
-template <typename T>
-void Ekf::update(T h, const Vector &z, const SymMatrix &R, Vector &h_pred, SymMatrix &S, Matrix *H, SymMatrix *S_inv, const bool use_h_pred)
+
+void Ekf::update(const Vector &z, const Vector &h_pred, const SymMatrix &S_inv, Matrix &PH_t)
 {
-    if (tmp1.size < z.size * x_dim)
-        realocTmp1(z.size * x_dim);
-
-    if (tmp2.size < x_dim * z.size)
-        tmp2.Vector::alloc(x_dim * z.size);
-
-    vector::cd(prev_x, x);
-
-    if (!use_h_pred)
-        h(h_pred, x);
-
-    if (H != nullptr)
-    {
-        tmp1.rows = z.size;
-        tmp1.cols = x_dim;
-        vector::cd(tmp1, *H);
-    }
-    else
-        jacobian(tmp1, h, x, h_pred);
-
+    //prepare the y vector
     if (z.size > y.size)
         y.alloc(z.size);
+    y.size = z.size;
 
+    //compute the inovation
     vector::sub(y, z, h_pred);
-    tmp2.rows = x_dim;
-    tmp2.cols = z.size;
-    tmp1.transpose();
-    sym_matrix::mul(tmp2, P, tmp1);
-    tmp1.transpose();
 
+    //prepare the K matrix
     if (K.size < x_dim * z.size)
         K.alloc(x_dim, z.size);
-
     K.rows = x_dim;
     K.cols = z.size;
 
-    if (S_inv == nullptr)
-    {
-        sym_matrix::mul(S, tmp1, tmp2);
-        vector::add(S, S, R);
-        tmpSym.order = S.order;
+    //compute the Kalman gain
+    sym_matrix::mul(K, PH_t, S_inv);
 
-        if (tmpLdl.size < S.size)
-            tmpLdl.alloc(S.order);
+    //update the state
+    matrix::mul_add(x, K, y);
 
-        tmpSym.order = S.order;
-        vector::cd(tmpLdl, S); // copy S to tmpLdl to save the original S
-
-        ldl_matrix::inv(tmpSym, tmpLdl);
-        sym_matrix::mul(K, tmp2, tmpSym);
-    }
-    else
-        sym_matrix::mul(K, tmp2, *S_inv);
-
-    matrix::mul(x, K, y);
-    vector::add(x, x, prev_x);
-    tmp2.transpose();
-    sym_matrix::sub_mul(P, K, tmp2);
-    tmp2.transpose();
+    //update the covariance
+    PH_t.transpose();
+    sym_matrix::sub_mul(P, K, PH_t);
+    PH_t.transpose();
 }
