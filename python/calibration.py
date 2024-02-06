@@ -1,11 +1,10 @@
 # to use an extended Kalman filter, we can use
-import threading
 import ekf
 import numpy as np
 from navpy import angle2quat
-from navpy import quat2angle
+# from navpy import quat2angle
 from navpy import quat2dcm
-from navpy import dcm2quat
+# from navpy import dcm2quat
 from pyquaternion import Quaternion
 import time as t
 
@@ -34,8 +33,8 @@ cam_m_k                         pixel       41+8*m
 ___________COMMANDS VECTOR_____________________
 
         State                   unit        index
-gyroscopes(xyz)                 rad/s       1:3
-accelerometers(xyz)             m/s²        4:6
+gyroscopes(xyz)                 rad/s       0:2
+accelerometers(xyz)             m/s²        3:5
 
 
 ___________SENSOR VECTORS_____________________
@@ -53,6 +52,18 @@ class criticalState:
                 self.position_cov = np.eye(3)
                 self.velocity_cov = np.eye(3)
                 self.orientation_cov = np.eye(4)*0.1
+        
+        def position_calibrated(self, tolerance=0.1):
+                return np.all(np.sqrt(np.diag(self.position_cov))<tolerance)
+        
+        def velocity_calibrated(self, tolerance=0.05):
+                return np.all(np.sqrt(np.diag(self.velocity_cov))<tolerance)
+        
+        def orientation_calibrated(self, tolerance=0.01):
+                return np.all(np.sqrt(np.diag(self.orientation_cov))<tolerance)
+        
+        def calibrated(self):
+                return self.position_calibrated() and self.velocity_calibrated() and self.orientation_calibrated()
                 
         def __str__(self) -> str:
                 return "criticalState\nposition = "+str(self.position)+"\nvelocity = "+str(self.velocity)+"\norientation = "+str(self.orientation)+"\nposition_cov = "+str(self.position_cov)+"\nvelocity_cov = "+str(self.velocity_cov)+"\norientation_cov = "+str(self.orientation_cov)
@@ -81,6 +92,21 @@ class MPU9250:
                 self.acc_ortho_cov = np.eye(9)*acc_cross_tolerance**2
                 self.gyr_ortho_cov = np.eye(9)*gyr_cross_tolerance**2
                 
+        def gyr_bias_calibrated(self, tolerance=0.0001):
+                return np.all(np.sqrt(np.diag(self.gyr_bias_cov))<tolerance)
+        
+        def acc_bias_calibrated(self, tolerance=0.005):
+                return np.all(np.sqrt(np.diag(self.acc_bias_cov))<tolerance)
+        
+        def gyr_ortho_calibrated(self, tolerance=0.005):
+                return np.all(np.sqrt(np.diag(self.gyr_ortho_cov))<tolerance)
+        
+        def acc_ortho_calibrated(self, tolerance=0.005):
+                return np.all(np.sqrt(np.diag(self.acc_ortho_cov))<tolerance)
+        
+        def calibrated(self):
+                return self.gyr_bias_calibrated() and self.acc_bias_calibrated() and self.gyr_ortho_calibrated() and self.acc_ortho_calibrated()
+        
         def __str__(self) -> str:
                 return "MPU9250\ngyr_noise = "+str(self.gyr_noise)+"\nacc_noise = "+str(self.acc_noise)+"\nacc_bias_co = "+str(self.acc_bias_co)+"\ngyr_bias_co = "+str(self.gyr_bias_co)+"\nacc_ortho_co = "+str(self.acc_ortho_co)+"\ngyr_ortho_co = "+str(self.gyr_ortho_co)+"\nacc_bias_cov = "+str(self.acc_bias_cov)+"\ngyr_bias_cov = "+str(self.gyr_bias_cov)+"\nacc_ortho_cov = "+str(self.acc_ortho_cov)+"\ngyr_ortho_cov = "+str(self.gyr_ortho_cov)
                            
@@ -104,6 +130,18 @@ class camera:
                 
                 self.led_measurements = None
                 self.led_measurement_cov = np.eye(2)*noise**2
+                
+        def position_calibrated(self, tolerance=0.1):
+                return np.all(np.sqrt(np.diag(self.pos_cov))<tolerance)
+        
+        def orientation_calibrated(self, tolerance=0.01):
+                return np.all(np.sqrt(np.diag(self.ori_cov))<tolerance)
+        
+        def k_calibrated(self, tolerance=1):
+                return np.sqrt(self.k_cov)<tolerance
+        
+        def calibrated(self):
+                return self.position_calibrated() and self.orientation_calibrated() and self.k_calibrated()
                 
         def __str__(self) -> str:
                 return "camera\nposition = "+str(self.position)+"\norientation = "+str(self.orientation)+"\nk = "+str(self.k)+"\npos_cov = "+str(self.pos_cov)+"\nori_cov = "+str(self.ori_cov)+"\nk_cov = "+str(self.k_cov)+"\nnoise = "+str(self.noise)+"\nled_measurements = "+str(self.led_measurements)+"\nled_measurement_cov = "+str(self.led_measurement_cov)
@@ -135,16 +173,11 @@ imu = MPU9250(gyr_noise,gyr_bias_tolerance,gyr_cross_tolerance,acc_noise,acc_xy_
 #defaut mounting camera parameters
 leds = [led(np.array([0.1,0,-0.1])),led(np.array([-0.1,0,-0.1]))]
 
-# cam_res = 800
-# cam_AoV = 135*np.pi/180
-# default_cam_k = cam_res/(2*np.tan(cam_AoV/2))
 default_cam_k = 800/3
-cam_AoV_accur = 0.00
 cam_mounting_accur_pos = 0
 cam_mounting_accur_ori = 0
 
-# k_uncertainty = 0.5*(cam_res/(2*np.tan((cam_AoV+cam_AoV_accur)/2))-cam_res/(2*np.tan((cam_AoV-cam_AoV_accur)/2)))
-k_uncertainty = 1
+k_uncertainty = 1.1
 cam1_position = np.array([0,0,-0.5])
 q0,qvec=angle2quat(0,0,0)
 cam1_orien = [q0,qvec[0],qvec[1],qvec[2]]
@@ -320,6 +353,7 @@ def predict():
         criticalState, imu, cams = X2calib(my_ekf.x, my_ekf.P, criticalState, imu, cams)
 
 
+from itertools import permutations
 
 def update(force_center = None):
         '''
@@ -333,17 +367,65 @@ def update(force_center = None):
                         for n in range(len(leds)):
                                 xx = my_ekf.x.copy()
                                 xx[0:3] = 0
+                                
                                 z = hcmln(xx,m,n) + np.random.normal(0,cams[m].noise,2)
-                                cams[m].led_measurements.append(z)
                                 
-                                my_ekf.update(lambda x: hcmln(x,m,n),z,cams[m].led_measurement_cov*9)
+                                #une chance sur 10 de ne pas avoir de mesure de la led
+                                new_measure = []
+                                if np.random.randint(0,10) != 0:
+                                        new_measure.append(z)
                                 
+                                #une chance sur 3 d'avoir une deuxieme mesure aberrante
+                                if np.random.randint(0,3) == 0:
+                                        new_measure.append(z + np.random.normal(0,10,2))
+                                
+                                # les mesures ne seront pas dans l'ordre
+                                np.random.shuffle(new_measure)
+                                cams[m].led_measurements.append(new_measure)
+                                
+                                
+                        # les mesures ne seront pas dans l'ordre
+                        np.random.shuffle(cams[m].led_measurements)                                
    
         
-        for cam in cams:
-                if cam.led_measurements is not None:
-                       # determiner l'appartenance de chaque mesure a une led
-                       pass
+        for m in range(len(cams)):
+                if cams[m].led_measurements is not None:
+                        avr_d=100000
+                        best_perm = None
+                        for perm in permutations(range(cams[m].led_measurements), len(leds)):
+                                d = 0
+                                count = 0
+                                for i in range(len(perm)):
+                                        h = lambda x: hcmln(x,m,n)
+                                        sub_d = 100000
+                                        min_j = len(cams[m].led_measurements[perm[i]])
+                                        for j in range(len(cams[m].led_measurements[perm[i]])):
+                                               tmp = my_ekf.mahalanobis(h ,cams[m].led_measurements[perm[i]][j],cams[0].led_measurement_cov) 
+                                               if tmp < sub_d:
+                                                        sub_d = tmp
+                                                        min_j = j
+                                        if sub_d < 20:
+                                                d += sub_d
+                                                count += 1
+                                if d < avr_d:
+                                        avr_d = d
+                                        best_perm = perm
+                       # determiner l'appartenance de chaque mesure a une led, bonne chance
+                        for n in range(len(leds)):
+                                h = lambda x: hcmln(x,m,n)
+                        for shape in cams[m].led_measurements:
+                                for point in shape:
+                                        d = my_ekf.mahalanobis(h ,point,cams[0].led_measurement_cov)
+                
+                        cams[m].led_measurements = None
 
          
         criticalState, imu, cams = X2calib(my_ekf.x, my_ekf.P, criticalState, imu, cams)        
+        
+
+n = 5  # nombre total d'éléments
+k = 3  # nombre d'éléments à choisir
+
+# Parcourir toutes les permutations de k éléments parmi n
+for perm in permutations(range(n), k):
+    print(perm)

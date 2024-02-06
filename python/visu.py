@@ -80,24 +80,7 @@ def draw_cube(postion, orientation, leds_location_in_img):
     
         
         
-'''
-        ____________STATE ESTIMATE VECTOR______________
-
-        State                   unit        index
-postion(xyz)                    m           1:3
-velocity(xyz)                   m/s         4:6
-orientation(quaternion)                     7:10
-acc_bias_correction(xyz)        m/s²        11:13
-acc_ortho_correction(3*3)                   14:22
-gyr_ortho_correction(3*3)                   23:31
-cam1_pos(xyz)                   m           32:34
-cam1_ori(quaternion)                        35:38
-cam1_k                          pixel        39
-cam2_pos(xyz)                   m           40:42
-cam2_ori(quaternion)                        43:46
-cam2_k                          pixel        47
-'''
-        
+ 
 def draw_state(state):
     # afficher l'état sur l'écran (avec du texte) state est un np.array de taille 47
 
