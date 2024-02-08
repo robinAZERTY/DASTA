@@ -49,9 +49,9 @@ class criticalState:
                 self.velocity = velocity
                 self.orientation = orientation
                 
-                self.position_cov = np.eye(3)
-                self.velocity_cov = np.eye(3)
-                self.orientation_cov = np.eye(4)*0.1
+                self.position_cov = np.eye(3)*0.0
+                self.velocity_cov = np.eye(3)*0
+                self.orientation_cov = np.eye(4)*0
         
         def position_calibrated(self, tolerance=0.1):
                 return np.all(np.sqrt(np.diag(self.position_cov))<tolerance)
@@ -128,7 +128,8 @@ class camera:
                 self.k_cov= k_accur**2
                 self.noise = noise
                 
-                self.led_measurements = None
+                self.fresh_led_measurements = None
+                self.last_led_measurements = None
                 self.led_measurement_cov = np.eye(2)*noise**2
                 
         def position_calibrated(self, tolerance=0.1):
@@ -353,6 +354,113 @@ def predict():
         criticalState, imu, cams = X2calib(my_ekf.x, my_ekf.P, criticalState, imu, cams)
 
 
+def generate_measurements(cams, leds, my_ekf, hcmln):
+        '''
+        generate measurements
+        '''
+        for m in range(len(cams)):
+                cams[m].fresh_led_measurements = []
+                for n in range(len(leds)):
+                        xx = my_ekf.x.copy()
+                        xx[0:3] = 0
+                        
+                        z = hcmln(xx,m,n)
+                        z = z + np.random.normal(0,cams[m].noise,2)
+                        
+                        #une chance sur 10 de ne pas avoir de mesure de la led
+                        new_measure = []
+                        if np.random.randint(0,10) != 0:
+                                new_measure.append(z)
+                        
+                        #une chance sur 3 d'avoir une deuxieme mesure aberrante
+                        if np.random.randint(0,3) == 0:
+                                new_measure.append(z + np.random.normal(0,10,2))
+                        
+                        # les mesures ne seront pas dans l'ordre
+                        np.random.shuffle(new_measure)
+                        if len(new_measure) != 0:
+                                cams[m].fresh_led_measurements.append(new_measure)
+                        
+                #une chance sur 20 de mesurer autre chose
+                if np.random.randint(0,20) == 0:
+                        cams[m].fresh_led_measurements.append([np.random.normal(0,100,2)])      
+                        
+                # les mesures ne seront pas dans l'ordre
+                np.random.shuffle(cams[m].fresh_led_measurements)
+                
+def find_best_perm(cam_m):
+        best_perm = None
+       
+        avr_d_min=100000
+        if  len(cams[cam_m].fresh_led_measurements) < len(leds):
+                for perm in permutations(range(len(leds)), len(cams[cam_m].fresh_led_measurements)):
+                        d = 0
+                        count = 0
+                        best_sub_j = [None]*len(leds)
+                        for i in range(len(perm)):
+                                h = lambda x: hcmln(x,cam_m,perm[i])
+                                sub_d = np.inf
+                                min_j = len(cams[cam_m].fresh_led_measurements[i])
+                                for j in range(len(cams[cam_m].fresh_led_measurements[i])):
+                                        tmp = my_ekf.mahalanobis(h ,cams[cam_m].fresh_led_measurements[i][j],cams[0].led_measurement_cov) 
+
+                                        if tmp < sub_d:
+                                                sub_d = tmp
+                                                min_j = j
+                                        
+                                if sub_d < 20:
+                                        d += sub_d
+                                        count += 1
+                                        best_sub_j[perm[i]] = min_j
+
+                        if count != 0:
+                                d = d/count
+                                if d < avr_d_min:
+                                        avr_d_min = d
+                                        # perm = (1,) means that the first shape corresponds to the second led
+                                        # perm = (1,0) means that the first shape corresponds to the second led and the second shape corresponds to the first led
+                                        # we need to reverse the permutation (1,) in order to have (None,0) means that the first shape corresponds to the second led or that the fist shape do not exist and the second shape corresponds to the first led
+                                        # we need to reverse the permutation (1,0) in order to have (1,0) means that the first led corresponds to the second shape and the second led corresponds to the first shape
+                                        perm2 = [0]*(max(perm)+1)
+                                        for i in range(len(perm2)):
+                                                perm2[i] = None
+                                        for i in range(len(perm)):
+                                                perm2[perm[i]] = i
+                                        
+                                        perm2 = tuple(perm2)  
+                                        
+                                        best_perm = (perm2,best_sub_j)
+        else:
+                
+                for perm in permutations(range(len(cams[cam_m].fresh_led_measurements)), len(leds)):
+                        d = 0
+                        count = 0
+                        best_sub_j = []
+                        for i in range(len(perm)):
+                                h = lambda x: hcmln(x,cam_m,i)
+                                sub_d = 100000
+                                min_j = len(cams[cam_m].fresh_led_measurements[perm[i]])
+                                for j in range(len(cams[cam_m].fresh_led_measurements[perm[i]])):
+                                        tmp = my_ekf.mahalanobis(h ,cams[cam_m].fresh_led_measurements[perm[i]][j],cams[0].led_measurement_cov) 
+
+                                        if tmp < sub_d:
+                                                sub_d = tmp
+                                                min_j = j
+                                
+                                if sub_d < 20:
+                                        d += sub_d
+                                        count += 1
+                                        best_sub_j.append(min_j)
+                                else:
+                                        best_sub_j.append(None)
+                        if count != 0:
+                                d = d/count
+                                if d < avr_d_min:
+                                        avr_d_min = d
+                                        best_perm = (perm,best_sub_j)
+                                        
+        return best_perm
+
 from itertools import permutations
 
 def update(force_center = None):
@@ -362,70 +470,23 @@ def update(force_center = None):
         global criticalState, imu, cams
         
         if force_center is not None:
-                for m in range(len(cams)):
-                        cams[m].led_measurements = []
-                        for n in range(len(leds)):
-                                xx = my_ekf.x.copy()
-                                xx[0:3] = 0
-                                
-                                z = hcmln(xx,m,n) + np.random.normal(0,cams[m].noise,2)
-                                
-                                #une chance sur 10 de ne pas avoir de mesure de la led
-                                new_measure = []
-                                if np.random.randint(0,10) != 0:
-                                        new_measure.append(z)
-                                
-                                #une chance sur 3 d'avoir une deuxieme mesure aberrante
-                                if np.random.randint(0,3) == 0:
-                                        new_measure.append(z + np.random.normal(0,10,2))
-                                
-                                # les mesures ne seront pas dans l'ordre
-                                np.random.shuffle(new_measure)
-                                cams[m].led_measurements.append(new_measure)
-                                
-                                
-                        # les mesures ne seront pas dans l'ordre
-                        np.random.shuffle(cams[m].led_measurements)                                
+                generate_measurements(cams, leds, my_ekf, hcmln)   
    
         
         for m in range(len(cams)):
-                if cams[m].led_measurements is not None:
-                        avr_d=100000
-                        best_perm = None
-                        for perm in permutations(range(cams[m].led_measurements), len(leds)):
-                                d = 0
-                                count = 0
-                                for i in range(len(perm)):
-                                        h = lambda x: hcmln(x,m,n)
-                                        sub_d = 100000
-                                        min_j = len(cams[m].led_measurements[perm[i]])
-                                        for j in range(len(cams[m].led_measurements[perm[i]])):
-                                               tmp = my_ekf.mahalanobis(h ,cams[m].led_measurements[perm[i]][j],cams[0].led_measurement_cov) 
-                                               if tmp < sub_d:
-                                                        sub_d = tmp
-                                                        min_j = j
-                                        if sub_d < 20:
-                                                d += sub_d
-                                                count += 1
-                                if d < avr_d:
-                                        avr_d = d
-                                        best_perm = perm
-                       # determiner l'appartenance de chaque mesure a une led, bonne chance
-                        for n in range(len(leds)):
-                                h = lambda x: hcmln(x,m,n)
-                        for shape in cams[m].led_measurements:
-                                for point in shape:
-                                        d = my_ekf.mahalanobis(h ,point,cams[0].led_measurement_cov)
-                
-                        cams[m].led_measurements = None
+                if cams[m].fresh_led_measurements is not None and cams[m].fresh_led_measurements != []:
+                        best_perm = find_best_perm(m)
+                                                        
+                        #update the state
+                        if best_perm is not None:
+                                if best_perm[0] is not None:
+                                        for i in range(len(best_perm[0])):
+                                                if best_perm[1][i] is not None:
+                                                        h = lambda x: hcmln(x,m,i)
+                                                        my_ekf.update(h,cams[m].fresh_led_measurements[best_perm[0][i]][best_perm[1][i]],cams[m].led_measurement_cov)
+        
+                        cams[m].last_led_measurements = cams[m].fresh_led_measurements
+                        cams[m].fresh_led_measurements = None
 
          
-        criticalState, imu, cams = X2calib(my_ekf.x, my_ekf.P, criticalState, imu, cams)        
-        
-
-n = 5  # nombre total d'éléments
-k = 3  # nombre d'éléments à choisir
-
-# Parcourir toutes les permutations de k éléments parmi n
-for perm in permutations(range(n), k):
-    print(perm)
+        criticalState, imu, cams = X2calib(my_ekf.x, my_ekf.P, criticalState, imu, cams)                

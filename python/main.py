@@ -55,29 +55,10 @@ def linkBL_and_Calibration():
                     calibration.imu.new_gyr_sample = data["gyro"]
                     calibration.imu.new_acc_sample = data["acc"]
                     calibration.predict()
-                    calibration.update(0.1)
-                    # print(calibration.cams[0].led_measurements)
+                    calibration.update(True)
+                    # print(calibration.cams[0].last_led_measurements)
         bluetoothTransmission.received_data = []
         
-        # if len(bluetoothTransmission.received_data) > 0:
-        #     print(bluetoothTransmission.received_data)
-        #     if len(bluetoothTransmission.received_data[0])>0:
-        #         received = bluetoothTransmission.received_data[0][0]
-        #         if received is not None:
-        #             #check is gyro and accel are in received
-        #             if "gyro" in received and "acc" in received and "time" in received:
-        #                 # print("received gyro and accel")
-        #                 calibration.imu.time = received["time"]/1000
-        #                 calibration.imu.new_gyr_sample = received["gyro"]
-        #                 calibration.imu.new_acc_sample = received["acc"]
-                        # if calibration.imu.prev_time is not None:
-                            # print(calibration.imu.time-calibration.imu.prev_time)
-        
-            # if len(bluetoothTransmission.received_data)>0:
-            #     if len(bluetoothTransmission.received_data[0])>0:
-            #         bluetoothTransmission.received_data[0].pop(0)
-            #     if len(bluetoothTransmission.received_data[0])==0: 
-            #         bluetoothTransmission.received_data.pop(0)
         time.sleep(0.001)                
     
 
@@ -88,7 +69,7 @@ def linkCalib_and_Visu():
         # visu.draw_cube(visu.Quaternion(calibration.ekf.Xn[6], calibration.ekf.Xn[7], calibration.ekf.Xn[8], calibration.ekf.Xn[9]), calibration.ekf.Xn[0:3].reshape(3))
         # visu.draw_Cov(calibration.ekf.Pn)
         # visu.draw_state(calibration.ekf.Xn)
-        visu.draw_cube(calibration.criticalState.position, calibration.criticalState.orientation, calibration.cams[0].led_measurements)
+        visu.draw_cube(calibration.criticalState.position, calibration.criticalState.orientation, calibration.cams[0].last_led_measurements)
         # On affiche le résultat
         visu.pygame.display.flip()
         # On attend 10 ms avant de recommencer
