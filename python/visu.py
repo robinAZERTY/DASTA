@@ -56,9 +56,11 @@ def draw_cube(postion, orientation, leds_location_in_img):
                           height / 2 + cube_vertices_projected[j][1] * width / 3))
         
     #on ajoute l'affichage des leds
+    # print(leds_location_in_img)
     if leds_location_in_img is not None:
-        for led in leds_location_in_img:
-            pygame.draw.circle(screen, BLACK, (led[0]+width/2, led[1]+height/2), 5)
+        for shape in leds_location_in_img:
+            for led in shape:
+                pygame.draw.circle(screen, BLACK, (led[0]+width/2, led[1]+height/2), 5)
         
     #on ajoute l'affichage des matrices de calibration
     # txt = "acc_ortho_correction:"

@@ -49,9 +49,9 @@ class criticalState:
                 self.velocity = velocity
                 self.orientation = orientation
                 
-                self.position_cov = np.eye(3)*0.0
-                self.velocity_cov = np.eye(3)*0
-                self.orientation_cov = np.eye(4)*0
+                self.position_cov = np.eye(3)*0.1
+                self.velocity_cov = np.eye(3)*0.01
+                self.orientation_cov = np.eye(4)*0.05
         
         def position_calibrated(self, tolerance=0.1):
                 return np.all(np.sqrt(np.diag(self.position_cov))<tolerance)
@@ -156,7 +156,8 @@ class environment:
                 
 
 env = environment(9.812)
-criticalState = criticalState(np.array([0,0,0]),np.array([0,0,0]),Quaternion(1,0,0,0))
+q0,qvec = angle2quat(0,0,0)
+criticalState = criticalState(np.array([0,0,0]),np.array([0,0,0]),Quaternion(q0,qvec[0],qvec[1],qvec[2]))
      
 #defaut mpu6050 parameters
 gyr_noise = 0.1*np.pi/180
@@ -388,7 +389,7 @@ def generate_measurements(cams, leds, my_ekf, hcmln):
                 # les mesures ne seront pas dans l'ordre
                 np.random.shuffle(cams[m].fresh_led_measurements)
                 
-def find_best_perm(cam_m):
+def find_best_perm(cam_m, maxMahalanobis=1000):
         best_perm = None
        
         avr_d_min=100000
@@ -447,7 +448,7 @@ def find_best_perm(cam_m):
                                                 sub_d = tmp
                                                 min_j = j
                                 
-                                if sub_d < 20:
+                                if sub_d < maxMahalanobis:
                                         d += sub_d
                                         count += 1
                                         best_sub_j.append(min_j)
