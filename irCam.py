@@ -73,12 +73,12 @@ def scanEntities(labels):
         
     return entities
         
-def preProcess(grayScale, expectedEntities):
+def preProcess(grayScale, expectedEntities, threshold=80):
     #normaliser l'image permet d'aussi bien traiter les images dans lesquelles il y a beaucoup de lumière que celles dans lesquelles il y en a peu -> attention au bruit et à l'environnement qui doit rester moins lumineux que les leds
     normalized = np.uint8(np.round(255.0/np.float64(np.max(grayScale))*np.float32(grayScale)))
     
     # on seuilise l'image pour ne garder que les objets qui sont les plus lumineux
-    thresholded = cv2.threshold(normalized,110,255,cv2.THRESH_BINARY)[1] #si besoin pour de meilleurs résultats, il faudra utiliser une seuil à hystérésis plutôt qu'un seuil simple, mais pour l'instant ça marche bien avec un seuil de 110
+    thresholded = cv2.threshold(normalized,threshold,255,cv2.THRESH_BINARY)[1] #si besoin pour de meilleurs résultats, il faudra utiliser une seuil à hystérésis plutôt qu'un seuil simple, mais pour l'instant ça marche bien avec un seuil de 110
 
     #on sépare les objets qui ne se touchent pas
     ret, labels = cv2.connectedComponents(np.uint8(thresholded))
@@ -113,7 +113,8 @@ def process(grayScale,expectedEntities):
    
 ledNumber = 2 #nombre de leds attendues
 
-cap = cv2.VideoCapture('WIN_20240117_13_11_07_Pro.mp4')
+# cap = cv2.VideoCapture('WIN_20240117_13_11_07_Pro.mp4')
+cap = cv2.VideoCapture(1)
 
 while(cap.isOpened()):
     
@@ -122,7 +123,7 @@ while(cap.isOpened()):
     if ret is False:
         break
     
-    time.sleep(0.2)
+    # time.sleep(0.2)
     
     #pour l'affichage, on veut une image plus grande et en couleur (originalFrame l'est déjà)
     frame2show = cv2.resize(originalFrame,(originalFrame.shape[1]*2,originalFrame.shape[0]*2))    
