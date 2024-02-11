@@ -1,10 +1,7 @@
 import socket
 import time
 import struct
-import json
-import asyncio
 import threading
-import os
 import pprint
 pp = pprint.PrettyPrinter(depth=4)
 
@@ -506,7 +503,7 @@ def main():
     telemetry_db, userCommand_db = open_dbs()
     threading.Thread(target=receiveTask, args=(connection,)).start()
     threading.Thread(target=sendTask, args=(connection,userCommand_db)).start()
-    threading.Thread(target=saveTask, args=(telemetry_db,)).start()
+    # threading.Thread(target=saveTask, args=(telemetry_db,)).start()
     # threading.Thread(target=userInputTask, args=(userCommand_db,)).start()
 
 # Exécutez le programme principal

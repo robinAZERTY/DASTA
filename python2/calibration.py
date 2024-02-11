@@ -43,44 +43,26 @@ ___________SENSOR VECTORS_____________________
 beac1_cam1(uv)                  pixel       0:1
 
 '''           
-class criticalState:
-        def __init__(self,position,velocity, orientation):
+class CriticalState:
+        def __init__(self,position = np.array([0,0,0]),velocity = np.array([0,0,0]), orientation = Quaternion(1,0,0,0)):
                 self.position = position
                 self.velocity = velocity
                 self.orientation = orientation
                 
-                self.position_cov = np.eye(3)*0.3
-                self.velocity_cov = np.eye(3)*0.01
-                self.orientation_cov = np.eye(4)*0.1
+                self.setPosCov(0)
+                self.setVelCov(0)
+                self.setOriCov(0)
+                
+                
         def setPosCov(self, pos_accur):
                 self.position_cov = np.eye(3)*pos_accur**2
+        
         def setVelCov(self, vel_accur):
-                self.velocity_cov = np.eye(3)*vel_accur**2       
-        def setOriCov(self, ori_accur_rad):
-                euler = list(quat2angle(self.orientation[0],[self.orientation[1:4]]))
-                #approximate the jacobian of the euler angles to the quaternion
-                eulerx = euler.copy()
-                eulerx[0] += ori_accur_rad
-                eulery = euler.copy()
-                eulery[1] += ori_accur_rad
-                eulerz = euler.copy()
-                eulerz[2] += ori_accur_rad
-                dq0x, dvecx = angle2quat(eulerx[0],eulerx[1],eulerx[2])
-                dq0y, dvecy = angle2quat(eulery[0],eulery[1],eulery[2])
-                dq0z, dvecz = angle2quat(eulerz[0],eulerz[1],eulerz[2])
-                dq0x -= self.orientation[0]
-                dvecx -= self.orientation[1:4]
-                dq0y -= self.orientation[0]
-                dvecy -= self.orientation[1:4]
-                dq0z -= self.orientation[0]
-                dvecz -= self.orientation[1:4]
-                dq0x **= 2
-                dvecx **= 2
-                dq0y **= 2
-                dvecy **= 2
-                dq0z **= 2
-                dvecz **= 2
-                self.orientation_cov = np.diag([dq0x+dq0y+dq0z,dvecx[0]+dvecy[0]+dvecz[0],dvecx[1]+dvecy[1]+dvecz[1],dvecx[2]+dvecy[2]+dvecz[2]])
+                self.velocity_cov = np.eye(3)*vel_accur**2
+        
+        def setOriCov(self, ori_accur):
+                self.orientation_cov = np.eye(4)*ori_accur**2
+                
         
         def position_calibrated(self, tolerance=0.1):
                 return np.all(np.sqrt(np.diag(self.position_cov))<tolerance)
@@ -99,43 +81,57 @@ class criticalState:
                 
                 
 class MPU9250:
-        def __init__(self,gyr_noise,gyr_bias_tolerance,gyr_cross_tolerance,acc_noise,acc_xy_bias_tolerance,acc_z_bias_tolerance,acc_gain_tolerance,acc_cross_tolerance):               
+        def __init__(self,gyr_noise=0,gyr_bias_tolerance=0,gyr_cross_tolerance=0,acc_noise=0,acc_bias_tolerance=0,acc_gain_tolerance=0,acc_cross_tolerance=0):               
                 self.new_acc_sample = None
                 self.new_gyr_sample = None
                 self.time = None
                 self.prev_time = None
-                
-                self.gyr_noise = np.eye(3)*gyr_noise**2
-                self.acc_noise = np.eye(3)*acc_noise**2
-                
+                                
                 self.acc_bias_co = np.zeros(3)
                 self.gyr_bias_co = np.zeros(3)
                 
                 self.gyr_ortho_co = np.eye(3)
                 self.acc_ortho_co = np.eye(3)
 
-                self.gyr_bias_cov = np.eye(3)*gyr_bias_tolerance**2
-                self.acc_bias_cov = np.eye(3)*acc_xy_bias_tolerance**2
-                self.acc_bias_cov[2,2] = acc_z_bias_tolerance**2
                 
-                self.acc_ortho_cov = np.eye(9)*acc_cross_tolerance**2
-                self.gyr_ortho_cov = np.eye(9)*gyr_cross_tolerance**2
-        
-        def setGyrNoise(self, gyr_noise):
+                self.setAccBiasCov(acc_bias_tolerance)
+                self.setGyrBiasCov(gyr_bias_tolerance)
+                
+                self.setGyrNoise(gyr_noise)
+                self.setAccNoise(acc_noise)
+                
+                self.setGyrOrthoCov(gyr_cross_tolerance,gyr_cross_tolerance)
+                self.setAccOrthoCov(acc_cross_tolerance,acc_cross_tolerance)
+                
+                self.gyr_bias_co = np.zeros(3)
+                self.acc_bias_co = np.zeros(3)
+                
+                self.gyr_ortho_co = np.eye(3)
+                self.acc_ortho_co = np.eye(3)
+                
+                
+                
+
+        def setGyrNoise(self,gyr_noise):
                 self.gyr_noise = np.eye(3)*gyr_noise**2
         
-        def setGyrBias(self, gyr_bias_tolerance):
-                self.gyr_bias_cov = np.eye(3)*gyr_bias_tolerance**2
-        
-        def setGyrOrthoCov(self, gyr_cross_tolerance,gyr_gain_tolerance):
-                self.gyr_ortho_cov = np.eye(9)*gyr_cross_tolerance**2
-        
-        def setAccNoise(self, acc_noise):
+        def setAccNoise(self,acc_noise):
                 self.acc_noise = np.eye(3)*acc_noise**2
+                
+        def setGyrOrthoCov(self,gyr_cross_tolerance,gyr_gain_tolerance):               
+                self.gyr_ortho_cov = np.eye(9)*gyr_cross_tolerance**2 + np.diag((np.eye(3)*gyr_gain_tolerance**2).reshape(9))
         
-        def setAccBiasCov(self, acc_bias_tolerance):
+        def setAccOrthoCov(self,acc_cross_tolerance,acc_gain_tolerance):
+                self.acc_ortho_cov = np.eye(9)*acc_cross_tolerance**2 + np.diag((np.eye(3)*acc_gain_tolerance**2).reshape(9))
+                
+        def setGyrBiasCov(self,gyr_bias_tolerance):
+                self.gyr_bias_cov = np.eye(3)*gyr_bias_tolerance**2
+                
+        def setAccBiasCov(self,acc_bias_tolerance):
                 self.acc_bias_cov = np.eye(3)*acc_bias_tolerance**2
-        
+                
+                
+                
         def gyr_bias_calibrated(self, tolerance=0.0001):
                 return np.all(np.sqrt(np.diag(self.gyr_bias_cov))<tolerance)
         
@@ -156,54 +152,43 @@ class MPU9250:
                            
 
 class led:
-        def __init__(self,mounting_position):
+        def __init__(self,mounting_position = np.array([0,0,0])):
                 self.mounting_position = mounting_position
                 
         def __str__(self) -> str:
                 return "led\nmounting_position = "+str(self.mounting_position)
                 
 class camera:
-        def __init__(self,position, orientation, k,  pos_accur, ori_accur, k_accur, noise=1):
+        def __init__(self,position=np.array([0,0,0]), orientation=Quaternion(1,0,0,0), k=1,  pos_accur=0, ori_accur=0, k_accur=0, noise=1):
                 self.position = position
                 self.orientation = orientation
                 self.k = k
-                self.pos_cov = np.eye(3)*pos_accur**2
-                self.ori_cov = np.eye(4)*ori_accur**2
-                self.k_cov= k_accur**2
-                self.noise = noise
                 
+                self.setPosCov(pos_accur)
+                self.setOriCov(ori_accur)
+                self.setKCov(k_accur)
+
+                self.noise = noise
                 self.fresh_led_measurements = None
                 self.last_led_measurements = None
                 self.led_measurement_cov = np.eye(2)*noise**2
-        
+                
+        def setOri(self, Rzyx, input_unit = 'deg'):
+                q0, qvec = angle2quat(Rzyx[0],Rzyx[1],Rzyx[2], input_unit=input_unit)
+                self.orientation = Quaternion(q0,qvec[0],qvec[1],qvec[2])
+                
+        def getRzyx(self, output_unit = 'deg'):
+                q0, qvec = self.orientation.elements[0], self.orientation.elements[1:4]
+                return list(quat2angle(q0, qvec, output_unit=output_unit))
+
         def setPosCov(self, pos_accur):
                 self.pos_cov = np.eye(3)*pos_accur**2
         
-        def setOriCov(self, ori_accur_rad):
-                euler = list(quat2angle(self.orientation[0],[self.orientation[1:4]]))
-                #approximate the jacobian of the euler angles to the quaternion
-                eulerx = euler.copy()
-                eulerx[0] += ori_accur_rad
-                eulery = euler.copy()
-                eulery[1] += ori_accur_rad
-                eulerz = euler.copy()
-                eulerz[2] += ori_accur_rad
-                dq0x, dvecx = angle2quat(eulerx[0],eulerx[1],eulerx[2])
-                dq0y, dvecy = angle2quat(eulery[0],eulery[1],eulery[2])
-                dq0z, dvecz = angle2quat(eulerz[0],eulerz[1],eulerz[2])
-                dq0x -= self.orientation[0]
-                dvecx -= self.orientation[1:4]
-                dq0y -= self.orientation[0]
-                dvecy -= self.orientation[1:4]
-                dq0z -= self.orientation[0]
-                dvecz -= self.orientation[1:4]
-                dq0x **= 2
-                dvecx **= 2
-                dq0y **= 2
-                dvecy **= 2
-                dq0z **= 2
-                dvecz **= 2
-                self.ori_cov = np.diag([dq0x+dq0y+dq0z,dvecx[0]+dvecy[0]+dvecz[0],dvecx[1]+dvecy[1]+dvecz[1],dvecx[2]+dvecy[2]+dvecz[2]])
+        def setOriCov(self, ori_accur):
+                self.ori_cov = np.eye(4)*ori_accur**2
+                
+        def setKCov(self, k_accur):
+                self.k_cov = k_accur**2
                 
         def position_calibrated(self, tolerance=0.1):
                 return np.all(np.sqrt(np.diag(self.pos_cov))<tolerance)
@@ -218,58 +203,25 @@ class camera:
                 return self.position_calibrated() and self.orientation_calibrated() and self.k_calibrated()
                 
         def __str__(self) -> str:
-                return "camera\nposition = "+str(self.position)+"\norientation = "+str(self.orientation)+"\nk = "+str(self.k)+"\npos_cov = "+str(self.pos_cov)+"\nori_cov = "+str(self.ori_cov)+"\nk_cov = "+str(self.k_cov)+"\nnoise = "+str(self.noise)+"\nled_measurements = "+str(self.led_measurements)+"\nled_measurement_cov = "+str(self.led_measurement_cov)
+                return "camera\nposition = "+str(self.position)+"\norientation = "+str(self.orientation)+"\nk = "+str(self.k)+"\npos_cov = "+str(self.pos_cov)+"\nori_cov = "+str(self.ori_cov)+"\nk_cov = "+str(self.k_cov)+"\nnoise = "+str(self.noise)+"\nled_measurements = "+str(self.last_led_measurements)+"\nled_measurement_cov = "+str(self.led_measurement_cov)
 
 class environment:
-        def __init__(self, gravity):
+        def __init__(self, gravity=9.81):
                 self.gravity = gravity
                 
         def __str__(self) -> str:
                 return "environment\ngravity = "+str(self.gravity)
                 
 
-env = environment(9.812)
-'''
-R =
-[0 1 0
-1 0 0
-0 0 -1]
+#instanciation of the system
+env = environment()
+criticalState = CriticalState()
+imu = MPU9250()        
+leds = [led() for i in range(2)]
+cams = [camera() for i in range(1)]
 
-'''
-# q0,qvec = angle2quat(0,0,0)
-# q0 = 0.7071067811865476
-# qvec = [0.7071067811865476,0,0]
-q0 = 1
-qvec = [0,0,0]
-criticalState = criticalState(np.array([0,0,0]),np.array([0,0,0]),Quaternion(q0,qvec[0],qvec[1],qvec[2]))
-     
-#defaut mpu6050 parameters
-gyr_noise = 0.1*np.pi/180
-gyr_bias_tolerance = 0.03
-gyr_cross_tolerance = 0.02
-acc_noise = 0.008*9.81
-acc_xy_bias_tolerance = 0.06*9.81
-acc_z_bias_tolerance = 0.08*9.81
-acc_gain_tolerance = 0.03
-acc_cross_tolerance = 0.03
-
-imu = MPU9250(gyr_noise,gyr_bias_tolerance,gyr_cross_tolerance,acc_noise,acc_xy_bias_tolerance,acc_z_bias_tolerance,acc_gain_tolerance,acc_cross_tolerance)
-
-             
-#defaut mounting camera parameters
-leds = [led(np.array([0.1,0,-0.1])),led(np.array([-0.1,0,-0.1]))]
-
-default_cam_k = 480
-cam_mounting_accur_pos = 0.1
-cam_mounting_accur_ori = 0.1
-
-k_uncertainty = 0.1
-cam1_position = np.array([0,0,-2.10])
-q0,qvec=angle2quat(0,0,0)
-cam1_orien = [q0,qvec[0],qvec[1],qvec[2]]
-cam_noise = 1
-
-cams = [camera(cam1_position,cam1_orien,default_cam_k,cam_mounting_accur_pos,cam_mounting_accur_ori,k_uncertainty, cam_noise)]
+my_ekf = ekf.Ekf()
+Q = None
 
 
 
@@ -321,7 +273,7 @@ def project(led_pos,drone_orien,drone_pos,cam_pos,cam_orien,cam_k):
         qdcm = quat2dcm(drone_orien[0],-drone_orien[1:4])
         res = qdcm@led_pos
         res1 = res + drone_pos - cam_pos
-        qdcm2 = quat2dcm(cam_orien[0],-cam_orien[1:4])
+        qdcm2 = quat2dcm(cam_orien[0],cam_orien[1:4])
         res2 = qdcm2@res1
         res3 = res2[0:2]*cam_k/res2[2]
         return res3
@@ -360,7 +312,7 @@ def calib2X(Q, x, P, criState, imu, cams):
 
         for i in range(len(cams)):
                 x[34+8*i:37+8*i] = cams[i].position
-                x[37+8*i:41+8*i] = cams[i].orientation
+                x[37+8*i:41+8*i] = cams[i].orientation.elements
                 x[41+8*i] = cams[i].k
                 
         if (P is None):
@@ -407,12 +359,10 @@ def X2calib(X,P, criState, imu, cams):
                 cams[i].k_cov = P[41+8*i,41+8*i]
                 
         return criState, imu, cams
-
-my_ekf = ekf.Ekf(34+8*len(cams))
-Q = None
       
 def init():
         global Q, my_ekf
+        my_ekf = ekf.Ekf(34+8*len(cams))
         Q, my_ekf.x, my_ekf.P = calib2X(Q, my_ekf.x, my_ekf.P, criticalState, imu, cams)
 
 
@@ -576,5 +526,10 @@ def update(force_center = None):
          
         criticalState, imu, cams = X2calib(my_ekf.x, my_ekf.P, criticalState, imu, cams)                
         
-cams[0].setOriCov(0.1)
-print(cams[0].ori_cov)
+        
+if __name__ == "__main__":
+        # cams[0].se 
+        q0,qvec = angle2quat(135,-36,0)       
+        cams[0].orientation = Quaternion(q0,qvec[0],qvec[1],qvec[2])
+        print("cam0 = ",cams[0].orientation.elements)
+        

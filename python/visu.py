@@ -3,14 +3,15 @@ from pygame.locals import *
 import numpy as np
 from pyquaternion import Quaternion
 
-# Initialisation de Pygame
-pygame.init()
-
 # Paramètres de la fenêtre
 width, height = 800, 600
-screen = pygame.display.set_mode((width, height))
-screen2 = pygame.display.set_mode((width, height))
-pygame.display.set_caption("Cube en orientation quaternion")
+
+def init():
+    # Initialisation de Pygame
+    pygame.init()
+    screen = pygame.display.set_mode((width, height))
+    pygame.display.set_caption("Cube en orientation quaternion")
+    return screen
 
 # Couleurs
 WHITE = (255, 255, 255)
@@ -30,30 +31,65 @@ cube_vertices = np.array([[-1, -1, -1],
                           [1, 1, 1],
                           [-1, 1, 1]]) * side
 
+def project(point_pos,cube_orien,cube_pos,cam_pos,cam_orien,cam_k):
+        '''
+        project a point from world frame to camera frame
+        '''
+        # qdcm = quat2dcm(drone_orien[0],-drone_orien[1:4])
+        # res = qdcm@led_pos
+        # res1 = res + drone_pos - cam_pos
+        # qdcm2 = quat2dcm(cam_orien[0],-cam_orien[1:4])
+        # res2 = qdcm2@res1
+        # res3 = res2[0:2]*cam_k/res2[2]
+        # return res3
+        #using quaternion
+        rotated_point = cube_orien.rotate(point_pos)
+        rotated_point += cube_pos - cam_pos
+        rotated_point = cam_orien.rotate(rotated_point)
+        return rotated_point[0:2]*cam_k/rotated_point[2]
+        
 
-
-def draw_cube(postion, orientation, leds_location_in_img):
-    q = Quaternion(orientation[0], orientation[1], orientation[2], orientation[3])
-    p = postion
+def draw_cube(screen,postion, orientation, leds_location_in_img=None, camPos=None, camOri=None, cam_k=300):
+    
+    if camPos is None:
+        camPos = np.array([0,0,-dist2cam])
+    if camOri is None:
+        camOri = Quaternion(1,0,0,0)
+        
+    camPos = np.array(camPos)
+    camOri = Quaternion(camOri)
+        
     # On efface l'écran
     screen.fill(WHITE)
-    # On tourne le cube
-    cube_vertices_rotated = np.array([q.rotate(v) for v in cube_vertices])
-    # On décale le cube pour qu'il soit visible
-    cube_vertices_rotated[:, 2] += dist2cam
-    #on ajoute la position du cube
-    cube_vertices_rotated[:,:] += p
-    # On projette les points sur le plan de l'écran
-    cube_vertices_projected = np.array([(x / z, y / z) for x, y, z in cube_vertices_rotated])
+    #on projette les points du cube sur l'écran
+    cube_vertices_rotated = [project(v,orientation,postion,camPos,camOri,cam_k) for v in cube_vertices]
     # On dessine les arêtes du cube
     for i, j in [(0, 1), (1, 2), (2, 3), (3, 0),
-                 (4, 5), (5, 6), (6, 7), (7, 4),
-                 (0, 4), (1, 5), (2, 6), (3, 7)]:
-        pygame.draw.line(screen, BLACK,
-                         (width / 2 + cube_vertices_projected[i][0] * width / 3,
-                          height / 2 + cube_vertices_projected[i][1] * width / 3),
-                         (width / 2 + cube_vertices_projected[j][0] * width / 3,
-                          height / 2 + cube_vertices_projected[j][1] * width / 3))
+                    (4, 5), (5, 6), (6, 7), (7, 4),
+                    (0, 4), (1, 5), (2, 6), (3, 7)]:
+            pygame.draw.line(screen, BLACK,
+                            (width / 2 + cube_vertices_rotated[i][0],
+                            height / 2 + cube_vertices_rotated[i][1]),
+                            (width / 2 + cube_vertices_rotated[j][0],
+                            height / 2 + cube_vertices_rotated[j][1])) 
+    
+
+    # cube_vertices_rotated = np.array([q.rotate(v) for v in cube_vertices])
+    # # On décale le cube pour qu'il soit visible
+    # cube_vertices_rotated[:, 2] += dist2cam
+    # #on ajoute la position du cube
+    # cube_vertices_rotated[:,:] += p
+    # On projette les points sur le plan de l'écran
+    # cube_vertices_projected = np.array([(x / z, y / z) for x, y, z in cube_vertices_rotated])
+    # # On dessine les arêtes du cube
+    # for i, j in [(0, 1), (1, 2), (2, 3), (3, 0),
+    #              (4, 5), (5, 6), (6, 7), (7, 4),
+    #              (0, 4), (1, 5), (2, 6), (3, 7)]:
+    #     pygame.draw.line(screen, BLACK,
+    #                      (width / 2 + cube_vertices_projected[i][0] * width / 3,
+    #                       height / 2 + cube_vertices_projected[i][1] * width / 3),
+    #                      (width / 2 + cube_vertices_projected[j][0] * width / 3,
+    #                       height / 2 + cube_vertices_projected[j][1] * width / 3))
         
     #on ajoute l'affichage des leds
     # print(leds_location_in_img)
@@ -83,7 +119,7 @@ def draw_cube(postion, orientation, leds_location_in_img):
         
         
  
-def draw_state(state):
+def draw_state(screen,state):
     # afficher l'état sur l'écran (avec du texte) state est un np.array de taille 47
 
     screen.fill(WHITE)
@@ -125,7 +161,7 @@ def draw_state(state):
     
 
     
-def draw_Cov(cov_matrix):
+def draw_Cov(screen,cov_matrix):
     # afficher la matrice de covariance sur l'écran2
     try :
         screen.fill(WHITE)
@@ -145,6 +181,7 @@ def draw_Cov(cov_matrix):
         pass
     
 if __name__ == '__main__':
+    screen = init()
     # On crée un quaternion unitaire
     q = Quaternion()
     # On crée une horloge pour contrôler la vitesse de rotation
@@ -159,7 +196,7 @@ if __name__ == '__main__':
         # On calcule le quaternion de rotation
         q = Quaternion(axis=[1, 0, 0], angle=np.pi / 100) * q
         # On dessine le cube
-        draw_cube(q,np.array([0,0,0]))
+        draw_cube(screen,np.array([0,0,0]),q)
         # On affiche le résultat
         pygame.display.flip()
         # On attend 10 ms avant de recommencer
