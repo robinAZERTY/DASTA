@@ -120,6 +120,9 @@ def init():
     # set to 480p
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    cap.set(cv2.CAP_PROP_CONTRAST, 50)
+    cap.set(cv2.CAP_PROP_SATURATION, 50)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -8)
     
     return cap
 
