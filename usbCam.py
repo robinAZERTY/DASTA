@@ -7,8 +7,8 @@ cap = cv2.VideoCapture(1)
 #VGA (640x480): 90 fps
 # cap.set(cv2.CAP_PROP_FORMAT, cv2.CV_8U)#8 bits per pixel
 
-# cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 # cap.set(cv2.CAP_PROP_FPS, 15)
 # cap.set(cv2.CAP_PROP_MODE, 2)#0: 640x480, 1: 1280x720, 2: 1920x1080
 
@@ -19,7 +19,8 @@ cap.set(cv2.CAP_PROP_CONTRAST, 50)
 cap.set(cv2.CAP_PROP_SATURATION, 50)
 # cap.set(cv2.CAP_PROP_BRIGHTNESS, -50)
 # cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 100)
-cap.set(cv2.CAP_PROP_EXPOSURE, -10)
+#-1;-10; -8 ;-2
+cap.set(cv2.CAP_PROP_EXPOSURE, -4)
 # cap.set(cv2.CAP_PROP_MONOCHROME, 1)
 # cap.set(cv2.CAP_PROP_GAIN, 0)
 
