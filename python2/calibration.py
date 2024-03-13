@@ -173,6 +173,8 @@ class camera:
                 self.last_led_measurements = None
                 self.led_measurement_cov = np.eye(2)*noise**2
                 
+                self.imageShape = None
+                
         def setOri(self, Rzyx, input_unit = 'deg'):
                 q0, qvec = angle2quat(Rzyx[0],Rzyx[1],Rzyx[2], input_unit=input_unit)
                 self.orientation = Quaternion(q0,qvec[0],qvec[1],qvec[2])

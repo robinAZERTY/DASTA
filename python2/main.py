@@ -52,7 +52,7 @@ def setup():
     
     calibration.env.gravity = 9.812
     q0, qvec = calibration.angle2quat(0,-180,0, input_unit='deg')
-    calibration.criticalState.position = [0,0,0]
+    calibration.criticalState.position = [0.7,-0.7,0]
     calibration.criticalState.velocity = [0,0,0]
     calibration.criticalState.orientation = calibration.Quaternion(q0,qvec[0],qvec[1],qvec[2])
     calibration.criticalState.setPosCov(0.05)
@@ -69,11 +69,11 @@ def setup():
     calibration.leds[0].mounting_position = [0.03,-0.02,0.018]
     calibration.leds[1].mounting_position = [-0.03,0.02,0.018]
     
-    calibration.cams[0].position = [0.85,-0.85,-2.13]
+    calibration.cams[0].position = [2,-2,-2.60]
     q0,qvec = calibration.angle2quat(-134,0,41, input_unit='deg') 
 
     calibration.cams[0].orientation = calibration.Quaternion(q0,qvec[0],qvec[1],qvec[2])
-    calibration.cams[0].k = 480*2
+    calibration.cams[0].k = 0
     calibration.cams[0].setPosCov(0.1)
     calibration.cams[0].setOriCov(5/180.0*3.14)
     calibration.cams[0].setKCov(1)
@@ -132,7 +132,8 @@ def main():
     bluetoothTransmission.data_to_send.append({"user_event": 3}) #START_STREAM
 
     camInited = False
-    
+    last_entity_points = None
+    last_frame = None
     while(True):
         # if len(bluetoothTransmission.received_data) > 0:
         #     print(bluetoothTransmission.received_data)
@@ -152,27 +153,38 @@ def main():
         
         entity_points, originalFrame = irCam.main(cap)
         calibration.cams[0].fresh_led_measurements = entity_points
-        if originalFrame is None:
-            continue
-        
-        for segment in entity_points:
-            for point in segment:
-                tmp = point[0]
-                point[0] = point[1] - originalFrame.shape[1]/2
-                point[1] = tmp - originalFrame.shape[0]/2
-        
-        if camInited:
-            if entity_points is not None:
-                calibration.update()
+        if originalFrame is not None:
+            last_frame = originalFrame.copy()
+            if calibration.cams[0].k == 0:
+                calibration.cams[0].k = 2*np.max(last_frame.shape)/(2*np.pi/3)
+                calibration.cams[0].imageShape = last_frame.shape
+            for segment in entity_points:
+                for point in segment:
+                    tmp = point[0]
+                    point[0] = point[1] - last_frame.shape[1]/2
+                    point[1] = tmp - last_frame.shape[0]/2
             
-        draw_box(originalFrame)
+            if camInited:
+                if entity_points is not None:
+                    last_entity_points = entity_points.copy()
+                    calibration.update()
+        
+        if last_entity_points is None:
+            last_entity_points = []
+        if last_frame is None:
+            last_frame = np.zeros((480,640,3), dtype=np.uint8)
+        else: 
+            last_frame = cv2.normalize(last_frame, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
+
+
+        draw_box(last_frame)
+        cv2.putText(last_frame,str(len(last_entity_points))+ "/"+str(irCam.ledNumber),(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2,cv2.LINE_AA)
+        #et on les ajoute sur l'image
+        for segment in last_entity_points:
+            for point in segment:
+                cv2.circle(last_frame,(round(point[0]+last_frame.shape[1]/2),round(point[1]+last_frame.shape[0]/2)), 3, (0,0,255), -1)
 
         
-        cv2.putText(originalFrame,str(len(entity_points))+ "/"+str(irCam.ledNumber),(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2,cv2.LINE_AA)
-        #et on les ajoute sur l'image
-        for segment in entity_points:
-            for point in segment:
-                cv2.circle(originalFrame,(round(point[0]+originalFrame.shape[1]/2),round(point[1]+originalFrame.shape[0]/2)), 3, (0,0,255), -1)
 
         
         key = cv2.waitKey(1)
@@ -185,14 +197,14 @@ def main():
             #on affiche la prediction des leds
             led1 = calibration.project(calibration.leds[0].mounting_position,calibration.criticalState.orientation.elements,calibration.criticalState.position,calibration.cams[0].position,calibration.cams[0].orientation.elements,calibration.cams[0].k)
             led2 = calibration.project(calibration.leds[1].mounting_position,calibration.criticalState.orientation.elements,calibration.criticalState.position,calibration.cams[0].position,calibration.cams[0].orientation.elements,calibration.cams[0].k)
-            cv2.circle(originalFrame,(round(led1[0]+originalFrame.shape[1]/2),round(led1[1]+originalFrame.shape[0]/2)), 3, (0,255,0), 1)
-            cv2.circle(originalFrame,(round(led2[0]+originalFrame.shape[1]/2),round(led2[1]+originalFrame.shape[0]/2)), 3, (0,255,0), 1)
+            cv2.circle(last_frame,(round(led1[0]+last_frame.shape[1]/2),round(led1[1]+last_frame.shape[0]/2)), 3, (0,255,0), 1)
+            cv2.circle(last_frame,(round(led2[0]+last_frame.shape[1]/2),round(led2[1]+last_frame.shape[0]/2)), 3, (0,255,0), 1)
                             
             #on affiche aussi la position et orientation de la camera
             txt = "camera position: "+str(calibration.cams[0].position)
-            cv2.putText(originalFrame,txt,(50,100), cv2.FONT_HERSHEY_SIMPLEX, 0.3,(255,255,255),1,cv2.LINE_AA)
+            cv2.putText(last_frame,txt,(50,100), cv2.FONT_HERSHEY_SIMPLEX, 0.3,(255,255,255),1,cv2.LINE_AA)
             txt = "camera orientation: "+str(calibration.cams[0].getRzyx())
-            cv2.putText(originalFrame,txt,(50,150), cv2.FONT_HERSHEY_SIMPLEX, 0.3,(255,255,255),1,cv2.LINE_AA)
+            cv2.putText(last_frame,txt,(50,150), cv2.FONT_HERSHEY_SIMPLEX, 0.3,(255,255,255),1,cv2.LINE_AA)
 
             #modification en direct de la position de la camera
             if key == ord('z'):
@@ -230,11 +242,18 @@ def main():
                 calibration.cams[0].setOri(rzyx)
             if key == ord('q'):
                 camInited = True
-
+            if key == ord('p'):
+                #exit the program
+                cv2.destroyAllWindows()
+                cap.release()
+                exit()
                 
             calibration.calib2X(calibration.Q, calibration.my_ekf.x, calibration.my_ekf.P, calibration.criticalState, calibration.imu, calibration.cams)
-        cv2.imshow('frame',originalFrame)
-        time.sleep(0.001)
+        
+        # resize the image *1.8
+        toShow = cv2.resize(last_frame,(int(last_frame.shape[1]*1.8),int(last_frame.shape[0]*1.8)))
+        cv2.imshow('frame',toShow)
+        # show the normalalized image
         
 if __name__ == "__main__":
     bluetoothTransmission.main()#init the bluetooth

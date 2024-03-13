@@ -118,19 +118,38 @@ def init():
     print("opening camera")
     cap = cv2.VideoCapture(1)
     # set to 480p
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-    cap.set(cv2.CAP_PROP_CONTRAST, 50)
-    cap.set(cv2.CAP_PROP_SATURATION, 50)
-    cap.set(cv2.CAP_PROP_EXPOSURE, -8)
+    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    # cap.set(cv2.CAP_PROP_EXPOSURE, -4)
+
     
     return cap
 
+lastFrame = None
+def read(cap):
+    ret,originalFrame = cap.read()
+    if ret is False:
+        return None
+    if originalFrame is None:
+        return None
+    global lastFrame
+    if lastFrame is None:
+        lastFrame = originalFrame
+        return originalFrame
+    diff = cv2.absdiff(originalFrame, lastFrame)
+    if np.sum(diff)==0:
+        return None
+    
+    # #normalisation de l'image
+    lastFrame = originalFrame
+    return originalFrame
+
 
 def main(cap):
-    ret,originalFrame = cap.read()
+    # ret,originalFrame = cap.read()
+    originalFrame = read(cap)
     
-    if ret is False:
+    if originalFrame is None:
         return None, None
     
     #tout le traitement se fait en niveau de gris
@@ -153,13 +172,14 @@ if __name__ == "__main__":
             continue
                 
         #pour l'affichage, on veut une image plus grande et en couleur (originalFrame l'est déjà)
-        frame2show = cv2.resize(originalFrame,(originalFrame.shape[1]*2,originalFrame.shape[0]*2))   
+        # frame2show = cv2.resize(originalFrame,(originalFrame.shape[1]*2,originalFrame.shape[0]*2))   
+        frame2show=originalFrame.copy()
         #on ajoute le nombre de d'objets trouvés sur l'image
         cv2.putText(frame2show,str(len(entity_points))+ "/"+str(ledNumber),(50,50), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2,cv2.LINE_AA)
         #et on les ajoute sur l'image
         for segment in entity_points:
             for point in segment:
-                cv2.circle(frame2show,(round(point[1]*2),round(point[0]*2)), 5, (0,0,255), -1)
+                cv2.circle(frame2show,(round(point[1]),round(point[0])), 5, (0,0,255), -1)
                 
         #puis on affiche l'image
         cv2.imshow('frame',frame2show)
