@@ -6,6 +6,7 @@
         "utility": "cpp",
         "limits": "cpp",
         "type_traits": "cpp",
-        "memory_resource": "cpp"
+        "memory_resource": "cpp",
+        "*.tcc": "cpp"
     }
 }

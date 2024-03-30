@@ -1,5 +1,5 @@
 /*
-  MPU9250.h
+  MPU6500.h
   Brian R Taylor
   brian.taylor@bolderflight.com
 
@@ -19,14 +19,14 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MPU9250_h
-#define MPU9250_h
+#ifndef MPU6500_h
+#define MPU6500_h
 
 #include "Arduino.h"
 #include "Wire.h"    // I2C library
 #include "SPI.h"     // SPI library
 
-class MPU9250{
+class MPU6500{
   public:
     enum GyroRange
     {
@@ -66,8 +66,8 @@ class MPU9250{
       LP_ACCEL_ODR_250HZ = 10,
       LP_ACCEL_ODR_500HZ = 11
     };
-    MPU9250(TwoWire &bus,uint8_t address);
-    MPU9250(SPIClass &bus,uint8_t csPin);
+    MPU6500(TwoWire &bus,uint8_t address);
+    MPU6500(SPIClass &bus,uint8_t csPin);
     int begin();
     int setAccelRange(AccelRange range);
     int setGyroRange(GyroRange range);
@@ -83,9 +83,6 @@ class MPU9250{
     float getGyroX_rads();
     float getGyroY_rads();
     float getGyroZ_rads();
-    float getMagX_uT();
-    float getMagY_uT();
-    float getMagZ_uT();
     float getTemperature_C();
     const unsigned long long &getTime(){return _time;};
     
@@ -112,19 +109,16 @@ class MPU9250{
     // data counts
     int16_t _axcounts,_aycounts,_azcounts;
     int16_t _gxcounts,_gycounts,_gzcounts;
-    int16_t _hxcounts,_hycounts,_hzcounts;
     int16_t _tcounts;
     // data buffer
     float _ax, _ay, _az;
     float _gx, _gy, _gz;
-    float _hx, _hy, _hz;
     float _t;
     // wake on motion
     uint8_t _womThreshold;
     // scale factors
     float _accelScale;
     float _gyroScale;
-    float _magScaleX, _magScaleY, _magScaleZ;
     const float _tempScale = 333.87f;
     const float _tempOffset = 21.0f;
     // configuration
@@ -141,7 +135,7 @@ class MPU9250{
     // constants
     const float G = 9.807f;
     const float _d2r = 3.14159265359f/180.0f;
-    // MPU9250 registers
+    // MPU6500 registers
     const uint8_t ACCEL_OUT = 0x3B;
     const uint8_t GYRO_OUT = 0x43;
     const uint8_t TEMP_OUT = 0x41;
@@ -207,26 +201,10 @@ class MPU9250{
     const uint8_t FIFO_MAG = 0x01;
     const uint8_t FIFO_COUNT = 0x72;
     const uint8_t FIFO_READ = 0x74;
-    // AK8963 registers
-    const uint8_t AK8963_I2C_ADDR = 0x0C;
-    const uint8_t AK8963_HXL = 0x03; 
-    const uint8_t AK8963_CNTL1 = 0x0A;
-    const uint8_t AK8963_PWR_DOWN = 0x00;
-    const uint8_t AK8963_CNT_MEAS1 = 0x12;
-    const uint8_t AK8963_CNT_MEAS2 = 0x16;
-    const uint8_t AK8963_FUSE_ROM = 0x0F;
-    const uint8_t AK8963_CNTL2 = 0x0B;
-    const uint8_t AK8963_RESET = 0x01;
-    const uint8_t AK8963_ASA = 0x10;
-    const uint8_t AK8963_WHO_AM_I = 0x00;
     // private functions
     int writeRegister(uint8_t subAddress, uint8_t data);
     int readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest);
-    int writeAK8963Register(uint8_t subAddress, uint8_t data);
-    int readAK8963Registers(uint8_t subAddress, uint8_t count, uint8_t* dest);
-    public:
     int whoAmI();
-    int whoAmIAK8963();
 };
 
 #endif

@@ -151,6 +151,19 @@ bool BL_stream::disable(const char *name)
     return true;
 }
 
+const char *BL_stream::get_name(uint8_t i)
+{
+    uint32_t in = 0;
+    for (uint8_t j = 0; j < i; j++)
+    {
+        while (this->names[in] != '\0')
+            in++;
+        in++;
+    }
+    return this->names + in;
+
+}
+
 int Communication::send_header(BL_stream *stream)
 {
     // write the description key
@@ -219,5 +232,7 @@ int Communication::receive()
         if (SerialBT.read() != receive_stream.end_line[i])
             return -4; // error while reading the end line
 
-    return 1; // success
+    return 1; // success (all data read)
 }
+
+

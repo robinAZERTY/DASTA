@@ -45,6 +45,7 @@ public:
     bool include(const char *name, Matrix &mat, bool stream = false);
     bool enable(const char *name);
     bool disable(const char *name);
+    const char *get_name(uint8_t i);
     String header();
 };
 
@@ -59,7 +60,10 @@ public:
     String device_name = "ESP32-Bluetooth";
     BL_stream send_stream, receive_stream;
     BluetoothSerial SerialBT;
-    Communication(){};
+
+    // angular velocity command
+    Vector angular_velocity_command = Vector(3);
+    Communication(){angular_velocity_command.fill(0);};
     ~Communication(){}; // TODO : free data
     int start();
     int send_header(BL_stream *stream);

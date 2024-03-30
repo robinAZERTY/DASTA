@@ -1,5 +1,5 @@
 /*
-  MPU9250.cpp
+  MPU6500.cpp
   Brian R Taylor
   brian.taylor@bolderflight.com
   
@@ -20,24 +20,24 @@
 */
 
 #include "Arduino.h"
-#include "MPU9250.h"
+#include "MPU6500.h"
 
-/* MPU9250 object, input the I2C bus and address */
-MPU9250::MPU9250(TwoWire &bus,uint8_t address){
+/* MPU6500 object, input the I2C bus and address */
+MPU6500::MPU6500(TwoWire &bus,uint8_t address){
   _i2c = &bus; // I2C bus
   _address = address; // I2C address
   _useSPI = false; // set to use I2C
 }
 
-/* MPU9250 object, input the SPI bus and chip select pin */
-MPU9250::MPU9250(SPIClass &bus,uint8_t csPin){
+/* MPU6500 object, input the SPI bus and chip select pin */
+MPU6500::MPU6500(SPIClass &bus,uint8_t csPin){
   _spi = &bus; // SPI bus
   _csPin = csPin; // chip select pin
   _useSPI = true; // set to use SPI
 }
 
-/* starts communication with the MPU-9250 */
-int MPU9250::begin(){
+/* starts communication with the MPU-6500 */
+int MPU6500::begin(){
   if( _useSPI ) { // using SPI for communication
     // use low speed SPI for register setting
     _useSPIHS = false;
@@ -65,15 +65,6 @@ int MPU9250::begin(){
   if(writeRegister(I2C_MST_CTRL,I2C_MST_CLK) < 0){
     return -3;
   }
-  // set AK8963 to Power Down
-  writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN);
-  // reset the MPU9250
-  writeRegister(PWR_MGMNT_1,PWR_RESET);
-  // wait for MPU-9250 to come back up
-  delay(1);
-  // reset the AK8963
-  writeAK8963Register(AK8963_CNTL2,AK8963_RESET);
-  // select clock source to gyro
   if(writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) < 0){
     return -4;
   }
@@ -118,42 +109,6 @@ int MPU9250::begin(){
 	if( writeRegister(I2C_MST_CTRL,I2C_MST_CLK) < 0){
 		return -13;
 	}
-	// check AK8963 WHO AM I register, expected value is 0x48 (decimal 72)
-	// if( whoAmIAK8963() != 72 ){
-  //   return -14;
-	// }
-  /* get the magnetometer calibration */
-  // set AK8963 to Power Down
-  // if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
-  //   return -15;
-  // }
-  // delay(100); // long wait between AK8963 mode changes
-  // // set AK8963 to FUSE ROM access
-  // if(writeAK8963Register(AK8963_CNTL1,AK8963_FUSE_ROM) < 0){
-  //   return -16;
-  // }
-  // delay(100); // long wait between AK8963 mode changes
-  // // read the AK8963 ASA registers and compute magnetometer scale factors
-  // readAK8963Registers(AK8963_ASA,3,_buffer);
-  // _magScaleX = ((((float)_buffer[0]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
-  // _magScaleY = ((((float)_buffer[1]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
-  // _magScaleZ = ((((float)_buffer[2]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla 
-  // // set AK8963 to Power Down
-  // if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
-  //   return -17;
-  // }
-  // delay(100); // long wait between AK8963 mode changes  
-  // // set AK8963 to 16 bit resolution, 100 Hz update rate
-  // if(writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS2) < 0){
-  //   return -18;
-  // }
-  // delay(100); // long wait between AK8963 mode changes
-  // // select clock source to gyro
-  // if(writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) < 0){
-  //   return -19;
-  // }       
-  // // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
-  // readAK8963Registers(AK8963_HXL,7,_buffer);
   // estimate gyro bias
   // if (calibrateGyro() < 0) {
   //   return -20;
@@ -163,7 +118,7 @@ int MPU9250::begin(){
 }
 
 /* sets the accelerometer full scale range to values other than default */
-int MPU9250::setAccelRange(AccelRange range) {
+int MPU6500::setAccelRange(AccelRange range) {
   // use low speed SPI for register setting
   _useSPIHS = false;
   switch(range) {
@@ -205,7 +160,7 @@ int MPU9250::setAccelRange(AccelRange range) {
 }
 
 /* sets the gyro full scale range to values other than default */
-int MPU9250::setGyroRange(GyroRange range) {
+int MPU6500::setGyroRange(GyroRange range) {
   // use low speed SPI for register setting
   _useSPIHS = false;
   switch(range) {
@@ -247,7 +202,7 @@ int MPU9250::setGyroRange(GyroRange range) {
 }
 
 /* sets the DLPF bandwidth to values other than default */
-int MPU9250::setDlpfBandwidth(DlpfBandwidth bandwidth) {
+int MPU6500::setDlpfBandwidth(DlpfBandwidth bandwidth) {
   // use low speed SPI for register setting
   _useSPIHS = false;
   switch(bandwidth) {
@@ -311,40 +266,13 @@ int MPU9250::setDlpfBandwidth(DlpfBandwidth bandwidth) {
 }
 
 /* sets the sample rate divider to values other than default */
-int MPU9250::setSrd(uint8_t srd) {
+int MPU6500::setSrd(uint8_t srd) {
   // use low speed SPI for register setting
   _useSPIHS = false;
   /* setting the sample rate divider to 19 to facilitate setting up magnetometer */
   if(writeRegister(SMPDIV,19) < 0){ // setting the sample rate divider
     return -1;
   }
-  // if(srd > 9){
-  //   // set AK8963 to Power Down
-  //   if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
-  //     return -2;
-  //   }
-  //   delay(100); // long wait between AK8963 mode changes  
-  //   // set AK8963 to 16 bit resolution, 8 Hz update rate
-  //   if(writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS1) < 0){
-  //     return -3;
-  //   }
-  //   delay(100); // long wait between AK8963 mode changes     
-  //   // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
-  //   readAK8963Registers(AK8963_HXL,7,_buffer);
-  // } else {
-  //   // set AK8963 to Power Down
-  //   if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
-  //     return -2;
-  //   }
-  //   delay(100); // long wait between AK8963 mode changes  
-  //   // set AK8963 to 16 bit resolution, 100 Hz update rate
-  //   if(writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS2) < 0){
-  //     return -3;
-  //   }
-  //   delay(100); // long wait between AK8963 mode changes     
-  //   // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
-  //   readAK8963Registers(AK8963_HXL,7,_buffer);    
-  // } 
   /* setting the sample rate divider */
   if(writeRegister(SMPDIV,srd) < 0){ // setting the sample rate divider
     return -4;
@@ -354,7 +282,7 @@ int MPU9250::setSrd(uint8_t srd) {
 }
 
 /* enables the data ready interrupt */
-int MPU9250::enableDataReadyInterrupt() {
+int MPU6500::enableDataReadyInterrupt() {
   // use low speed SPI for register setting
   _useSPIHS = false;
   /* setting the interrupt */
@@ -368,7 +296,7 @@ int MPU9250::enableDataReadyInterrupt() {
 }
 
 /* disables the data ready interrupt */
-int MPU9250::disableDataReadyInterrupt() {
+int MPU6500::disableDataReadyInterrupt() {
   // use low speed SPI for register setting
   _useSPIHS = false;
   if(writeRegister(INT_ENABLE,INT_DISABLE) < 0){ // disable interrupt
@@ -378,14 +306,12 @@ int MPU9250::disableDataReadyInterrupt() {
 }
 
 /* configures and enables wake on motion, low power mode */
-int MPU9250::enableWakeOnMotion(float womThresh_mg,LpAccelOdr odr) {
+int MPU6500::enableWakeOnMotion(float womThresh_mg,LpAccelOdr odr) {
   // use low speed SPI for register setting
   _useSPIHS = false;
-  // // set AK8963 to Power Down
-  // writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN);
-  // reset the MPU9250
+  // reset the MPU6500
   writeRegister(PWR_MGMNT_1,PWR_RESET);
-  // wait for MPU-9250 to come back up
+  // wait for MPU-6500 to come back up
   delay(1);
   if(writeRegister(PWR_MGMNT_1,0x00) < 0){ // cycle 0, sleep 0, standby 0
     return -1;
@@ -416,10 +342,10 @@ int MPU9250::enableWakeOnMotion(float womThresh_mg,LpAccelOdr odr) {
 }
 
 
-/* reads the most current data from MPU9250 and stores in buffer */
-int MPU9250::readSensor() {
+/* reads the most current data from MPU6500 and stores in buffer */
+int MPU6500::readSensor() {
   _useSPIHS = true; // use the high speed SPI for data readout
-  // grab the data from the MPU9250
+  // grab the data from the MPU6500
   if (readRegisters(ACCEL_OUT, 21, _buffer) < 0) {
     return -1;
   }
@@ -432,9 +358,6 @@ int MPU9250::readSensor() {
   _gxcounts = (((int16_t)_buffer[8]) << 8) | _buffer[9];
   _gycounts = (((int16_t)_buffer[10]) << 8) | _buffer[11];
   _gzcounts = (((int16_t)_buffer[12]) << 8) | _buffer[13];
-  // _hxcounts = (((int16_t)_buffer[15]) << 8) | _buffer[14];
-  // _hycounts = (((int16_t)_buffer[17]) << 8) | _buffer[16];
-  // _hzcounts = (((int16_t)_buffer[19]) << 8) | _buffer[18];
   // transform and convert to float values
   _ax = (float)(tX[0]*_axcounts + tX[1]*_aycounts + tX[2]*_azcounts) * _accelScale;
   _ay = (float)(tY[0]*_axcounts + tY[1]*_aycounts + tY[2]*_azcounts) * _accelScale;
@@ -442,74 +365,56 @@ int MPU9250::readSensor() {
   _gx = (float)(tX[0]*_gxcounts + tX[1]*_gycounts + tX[2]*_gzcounts) * _gyroScale;
   _gy = (float)(tY[0]*_gxcounts + tY[1]*_gycounts + tY[2]*_gzcounts) * _gyroScale;
   _gz = (float)(tZ[0]*_gxcounts + tZ[1]*_gycounts + tZ[2]*_gzcounts) * _gyroScale;
-  // _hx = (float)(_hxcounts) * _magScaleX;
-  // _hy = (float)(_hycounts) * _magScaleY;
-  // _hz = (float)(_hzcounts) * _magScaleZ;
   _t = ((((float) _tcounts) - _tempOffset)/_tempScale) + _tempOffset;
   return 1;
 }
 
 /* returns the accelerometer measurement in the x direction, m/s/s */
-float MPU9250::getAccelX_mss() {
+float MPU6500::getAccelX_mss() {
   return _ax;
 }
 
 /* returns the accelerometer measurement in the y direction, m/s/s */
-float MPU9250::getAccelY_mss() {
+float MPU6500::getAccelY_mss() {
   return _ay;
 }
 
 /* returns the accelerometer measurement in the z direction, m/s/s */
-float MPU9250::getAccelZ_mss() {
+float MPU6500::getAccelZ_mss() {
   return _az;
 }
 
 /* returns the gyroscope measurement in the x direction, rad/s */
-float MPU9250::getGyroX_rads() {
+float MPU6500::getGyroX_rads() {
   return _gx;
 }
 
 /* returns the gyroscope measurement in the y direction, rad/s */
-float MPU9250::getGyroY_rads() {
+float MPU6500::getGyroY_rads() {
   return _gy;
 }
 
 /* returns the gyroscope measurement in the z direction, rad/s */
-float MPU9250::getGyroZ_rads() {
+float MPU6500::getGyroZ_rads() {
   return _gz;
 }
 
-/* returns the magnetometer measurement in the x direction, uT */
-float MPU9250::getMagX_uT() {
-  return _hx;
-}
-
-/* returns the magnetometer measurement in the y direction, uT */
-float MPU9250::getMagY_uT() {
-  return _hy;
-}
-
-/* returns the magnetometer measurement in the z direction, uT */
-float MPU9250::getMagZ_uT() {
-  return _hz;
-}
-
 /* returns the die temperature, C */
-float MPU9250::getTemperature_C() {
+float MPU6500::getTemperature_C() {
   return _t;
 }
 
 
 
-/* writes a byte to MPU9250 register given a register address and data */
-int MPU9250::writeRegister(uint8_t subAddress, uint8_t data){
+/* writes a byte to MPU6500 register given a register address and data */
+int MPU6500::writeRegister(uint8_t subAddress, uint8_t data){
   /* write data to device */
   if( _useSPI ){
     _spi->beginTransaction(SPISettings(SPI_LS_CLOCK, MSBFIRST, SPI_MODE3)); // begin the transaction
-    digitalWrite(_csPin,LOW); // select the MPU9250 chip
+    digitalWrite(_csPin,LOW); // select the MPU6500 chip
     _spi->transfer(subAddress); // write the register address
     _spi->transfer(data); // write the data
-    digitalWrite(_csPin,HIGH); // deselect the MPU9250 chip
+    digitalWrite(_csPin,HIGH); // deselect the MPU6500 chip
     _spi->endTransaction(); // end the transaction
   }
   else{
@@ -532,8 +437,8 @@ int MPU9250::writeRegister(uint8_t subAddress, uint8_t data){
   }
 }
 
-/* reads registers from MPU9250 given a starting register address, number of bytes, and a pointer to store data */
-int MPU9250::readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
+/* reads registers from MPU6500 given a starting register address, number of bytes, and a pointer to store data */
+int MPU6500::readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
   if( _useSPI ){
     // begin the transaction
     if(_useSPIHS){
@@ -542,12 +447,12 @@ int MPU9250::readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
     else{
       _spi->beginTransaction(SPISettings(SPI_LS_CLOCK, MSBFIRST, SPI_MODE3));
     }
-    digitalWrite(_csPin,LOW); // select the MPU9250 chip
+    digitalWrite(_csPin,LOW); // select the MPU6500 chip
     _spi->transfer(subAddress | SPI_READ); // specify the starting register address
     for(uint8_t i = 0; i < count; i++){
       dest[i] = _spi->transfer(0x00); // read the data
     }
-    digitalWrite(_csPin,HIGH); // deselect the MPU9250 chip
+    digitalWrite(_csPin,HIGH); // deselect the MPU6500 chip
     _spi->endTransaction(); // end the transaction
     return 1;
   }
@@ -567,69 +472,10 @@ int MPU9250::readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
   }
 }
 
-/* writes a register to the AK8963 given a register address and data */
-int MPU9250::writeAK8963Register(uint8_t subAddress, uint8_t data){
-  // set slave 0 to the AK8963 and set for write
-	if (writeRegister(I2C_SLV0_ADDR,AK8963_I2C_ADDR) < 0) {
-    return -1;
-  }
-  // set the register to the desired AK8963 sub address 
-	if (writeRegister(I2C_SLV0_REG,subAddress) < 0) {
-    return -2;
-  }
-  // store the data for write
-	if (writeRegister(I2C_SLV0_DO,data) < 0) {
-    return -3;
-  }
-  // enable I2C and send 1 byte
-	if (writeRegister(I2C_SLV0_CTRL,I2C_SLV0_EN | (uint8_t)1) < 0) {
-    return -4;
-  }
-	// read the register and confirm
-	if (readAK8963Registers(subAddress,1,_buffer) < 0) {
-    return -5;
-  }
-	if(_buffer[0] == data) {
-  	return 1;
-  } else{
-  	return -6;
-  }
-}
-
-/* reads registers from the AK8963 */
-int MPU9250::readAK8963Registers(uint8_t subAddress, uint8_t count, uint8_t* dest){
-  // set slave 0 to the AK8963 and set for read
-	if (writeRegister(I2C_SLV0_ADDR,AK8963_I2C_ADDR | I2C_READ_FLAG) < 0) {
-    return -1;
-  }
-  // set the register to the desired AK8963 sub address
-	if (writeRegister(I2C_SLV0_REG,subAddress) < 0) {
-    return -2;
-  }
-  // enable I2C and request the bytes
-	if (writeRegister(I2C_SLV0_CTRL,I2C_SLV0_EN | count) < 0) {
-    return -3;
-  }
-	delay(1); // takes some time for these registers to fill
-  // read the bytes off the MPU9250 EXT_SENS_DATA registers
-	_status = readRegisters(EXT_SENS_DATA_00,count,dest); 
-  return _status;
-}
-
-/* gets the MPU9250 WHO_AM_I register value, expected to be 0x71 */
-int MPU9250::whoAmI(){
+/* gets the MPU6500 WHO_AM_I register value, expected to be 0x71 */
+int MPU6500::whoAmI(){
   // read the WHO AM I register
   if (readRegisters(WHO_AM_I,1,_buffer) < 0) {
-    return -1;
-  }
-  // return the register value
-  return _buffer[0];
-}
-
-/* gets the AK8963 WHO_AM_I register value, expected to be 0x48 */
-int MPU9250::whoAmIAK8963(){
-  // read the WHO AM I register
-  if (readAK8963Registers(AK8963_WHO_AM_I,1,_buffer) < 0) {
     return -1;
   }
   // return the register value
