@@ -21,6 +21,7 @@ class Dasta
     void configActuators();
     Pid pidRx, pidRy, pidRz;
     Vector Wu = Vector(3); // angular velocity command
+    float thrust = 0.0;
     // void configureStateEstimate();
 
 public:

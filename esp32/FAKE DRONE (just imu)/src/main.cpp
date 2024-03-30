@@ -14,6 +14,7 @@ SemaphoreHandle_t xSemaphore;
 
 void stateEstimateTask(void *pvParameters)
 {
+  dasta.sensors.startGyroBiasEstimation();
   unsigned long last_time = now;
   while (1)
   {
@@ -24,6 +25,7 @@ void stateEstimateTask(void *pvParameters)
       if (xSemaphoreTake(xSemaphore, STATE_ESTIMATE_DT_ms))
         dasta.sensors.readSensors();
       dasta.sensors.compensateGyroBias();
+      dasta.run_anguler_velocity_control();
       // dasta.estimator.run(dasta.sensors.getTime() / 1000.0);
       // quitter la section critique (rendre le sémaphore)
       xSemaphoreGive(xSemaphore);
@@ -44,9 +46,6 @@ void communicationTask(void *pvParameters)
 
     if (dasta.communication.receive())
     {
-      Serial.print("received: ");
-      Serial.println(dasta.communication.angular_velocity_command(0));
-      dasta.actuators.motor1.write(dasta.communication.angular_velocity_command(0));
       dasta.runDecisionOnUserEvent();
     }
 
@@ -64,6 +63,9 @@ void communicationTask(void *pvParameters)
     {
       Serial.println("Bluetooth disconnected");
       dasta.actuators.motor1.write(0);
+      dasta.actuators.motor2.write(0);
+      dasta.actuators.motor3.write(0);
+      dasta.actuators.motor4.write(0);
       ESP.restart();
     }
     delay(1);
@@ -91,6 +93,15 @@ void printTask(void *pvParameters)
     if (now - last_time >= PRINT_DT_ms)
     {
       last_time = now;
+      Serial.print(" gyrx: ");
+      Serial.print(dasta.sensors.gyro(0));
+      Serial.print(" x rot command: ");
+      Serial.print(dasta.Wu(0));
+      Serial.print(" motor1: ");
+      Serial.print(dasta.actuators.motor1.read());
+      Serial.print(" gyro bias compensation: ");
+      Serial.println(dasta.sensors.gyro_bias_co(0));
+
       // Serial.print("\tTasks stack size left: ");
       // Serial.print(uxTaskGetStackHighWaterMark(stateEstimateTaskHandle));
       // Serial.print(" ");
@@ -125,10 +136,12 @@ void setup()
   Serial.begin(115200); // for more speed, use 921600
   delay(4000);
   dasta.configActuators();
-  dasta.communication.device_name = "ESP32-Bluetooth";
-  dasta.communication.start();
+  // dasta.communication.device_name = "ESP32-Bluetooth";
+  // dasta.communication.start();
   // delay(1000); // wait for the serial monitor to open
-  // dasta.sensors.init();
+  dasta.sensors.init();
+  
+
   // Serial.println("Sensors initialized");
 
   // dasta.actuators.motor1.write(0.01); // start the motor at a really low speed (should be enough to start the motor)
@@ -138,7 +151,7 @@ void setup()
   // dasta.actuators.motor1.write(0);    // stop the motor
   // delay(3000);                        // wait 3 seconds
 
-  // start tasks
+  // // start tasks
   xTaskCreatePinnedToCore(
       stateEstimateTask,        /* Function to implement the task */
       "stateEstimateTask",      /* Name of the task */
@@ -148,14 +161,14 @@ void setup()
       &stateEstimateTaskHandle, /* Task handle. */
       0);                       /* Core where the task should run */
 
-  xTaskCreatePinnedToCore(
-      communicationTask,        /* Function to implement the task */
-      "communicationTask",      /* Name of the task */
-      1200,                      /* Stack size in words */
-      NULL,                     /* Task input parameter */
-      1,                        /* Priority of the task */
-      &communicationTaskHandle, /* Task handle. */
-      1);                       /* Core where the task should run */
+  // xTaskCreatePinnedToCore(
+  //     communicationTask,        /* Function to implement the task */
+  //     "communicationTask",      /* Name of the task */
+  //     1200,                      /* Stack size in words */
+  //     NULL,                     /* Task input parameter */
+  //     1,                        /* Priority of the task */
+  //     &communicationTaskHandle, /* Task handle. */
+  //     1);                       /* Core where the task should run */
 
   xTaskCreatePinnedToCore(
       printTask,        /* Function to implement the task */

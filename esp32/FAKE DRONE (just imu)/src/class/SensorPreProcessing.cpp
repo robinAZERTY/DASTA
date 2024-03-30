@@ -93,8 +93,9 @@ void SensorPreProcessing::readSensors()
 
 void SensorPreProcessing::startGyroBiasEstimation()
 {
+    readSensors();
     gyro_bias_estimation_count = 0;
-    gyro_bias_estimation_running = true;
+    // gyro_bias_estimation_running = true;
     cd(gyro_bias_co, gyro);
     mul(gyro_bias_co, gyro_bias_co, -1.0);
 }
