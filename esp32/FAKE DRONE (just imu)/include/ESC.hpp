@@ -44,7 +44,7 @@ public:
      * @brief: get the speed of the ESC, between 0 and 1 (for now, the speed is the last speed set by write())
      * @return: the speed of the ESC
      */
-    const float read() const { return speed_command; };
+    const float &read() const { return speed_command; };
 
     /*
      * @brief: check if the ESC is attached to a pin

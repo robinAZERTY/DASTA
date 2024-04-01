@@ -20,7 +20,7 @@ class Dasta
     void configSensorPreProcessing();
     void configActuators();
     Pid pidRx, pidRy, pidRz;
-    Vector Wu = Vector(3); // angular velocity command
+    // Vector Wu = Vector(3); // angular velocity command
     float thrust = 0.0;
     // void configureStateEstimate();
 

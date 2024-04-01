@@ -96,7 +96,7 @@ void printTask(void *pvParameters)
       Serial.print(" gyrx: ");
       Serial.print(dasta.sensors.gyro(0));
       Serial.print(" x rot command: ");
-      Serial.print(dasta.Wu(0));
+      Serial.print(dasta.communication.angular_velocity_command(0));
       Serial.print(" motor1: ");
       Serial.print(dasta.actuators.motor1.read());
       Serial.print(" gyro bias compensation: ");
@@ -135,12 +135,11 @@ void setup()
 
   Serial.begin(115200); // for more speed, use 921600
   delay(4000);
-  dasta.configActuators();
-  // dasta.communication.device_name = "ESP32-Bluetooth";
-  // dasta.communication.start();
+  dasta.communication.device_name = "ESP32-Bluetooth";
+  dasta.communication.start();
   // delay(1000); // wait for the serial monitor to open
   dasta.sensors.init();
-  
+  dasta.configActuators();
 
   // Serial.println("Sensors initialized");
 
@@ -161,14 +160,14 @@ void setup()
       &stateEstimateTaskHandle, /* Task handle. */
       0);                       /* Core where the task should run */
 
-  // xTaskCreatePinnedToCore(
-  //     communicationTask,        /* Function to implement the task */
-  //     "communicationTask",      /* Name of the task */
-  //     1200,                      /* Stack size in words */
-  //     NULL,                     /* Task input parameter */
-  //     1,                        /* Priority of the task */
-  //     &communicationTaskHandle, /* Task handle. */
-  //     1);                       /* Core where the task should run */
+  xTaskCreatePinnedToCore(
+      communicationTask,        /* Function to implement the task */
+      "communicationTask",      /* Name of the task */
+      1200,                      /* Stack size in words */
+      NULL,                     /* Task input parameter */
+      1,                        /* Priority of the task */
+      &communicationTaskHandle, /* Task handle. */
+      1);                       /* Core where the task should run */
 
   xTaskCreatePinnedToCore(
       printTask,        /* Function to implement the task */

@@ -14,13 +14,13 @@ Pid::Pid()
 // Parameterized constructor
 Pid::Pid(float kp, float ki, float kd, float maxIntegral, float timeConstDerFilter, float min, float max)
 {
-    this->kp = kp;
-    this->ki = ki;
-    this->kd = kd;
-    this->maxIntegral = maxIntegral;
-    this->timeConstDerFilter = timeConstDerFilter;
-    this->min = min;
-    this->max = max;
+    this->kp() = kp;
+    this->ki() = ki;
+    this->kd() = kd;
+    this->maxIntegral() = maxIntegral;
+    this->timeConstDerFilter() = timeConstDerFilter;
+    this->min() = min;
+    this->max() = max;
 
     lastTime = -1;
     integral = 0;
@@ -44,14 +44,13 @@ float Pid::compute(float error, float time)
 
     integral += error * deltaTime;
     
-    float integraleComp = ki * integral;
-    if (integraleComp > maxIntegral)
-        integral = maxIntegral / ki;
-    else if (integraleComp < -maxIntegral)
-        integral = -maxIntegral / ki;
+    float integraleComp = ki() * integral;
+    if (integraleComp > maxIntegral())
+        integral = maxIntegral() / ki();
+    else if (integraleComp < -maxIntegral())
+        integral = -maxIntegral() / ki();
 
     
-
     //compute the derivative filter
     float derivative = 0;
     if (deltaTime>0)
@@ -59,24 +58,24 @@ float Pid::compute(float error, float time)
     lastError = error;
 
     float alpha = 0; 
-    if (timeConstDerFilter) 
-        timeConstDerFilter / (timeConstDerFilter + deltaTime);
+    if (timeConstDerFilter()) 
+        alpha = timeConstDerFilter() / (timeConstDerFilter() + deltaTime);
     float filteredDerivative = (1-alpha) * derivative + alpha * lastDerivative;
     lastDerivative = filteredDerivative;
 
     float ret = 0;
     
-    if (kp!=0)
-        ret += kp * error;
+    if (kp())
+        ret += kp() * error;
 
-    if (ki!=0)
-        ret += ki * integral;
+    if (ki())
+        ret += ki() * integral;
 
-    if (kd!=0 && deltaTime>0)
-        ret += kd * filteredDerivative;
+    if (kd() && deltaTime)
+        ret += kd() * filteredDerivative;
 
-    ret = (ret<min)?min:ret;
-    ret = (ret>max)?max:ret;
+    ret = (ret<min())?min():ret;
+    ret = (ret>max())?max():ret;
 
     return ret;
 }

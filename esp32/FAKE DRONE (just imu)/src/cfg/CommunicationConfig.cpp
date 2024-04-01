@@ -19,7 +19,12 @@ void Dasta::configCommunication()
     
     communication.send_stream.include("time", (uint8_t *)&sensors.imu.getTime(), BL_stream::types.UNSIGNED_LONG_LONG, sizeof(sensors.imu.getTime()),true); 
     // communication.send_stream.include("acc", sensors.acc);
-    communication.send_stream.include("gyro", sensors.gyro);
+    communication.send_stream.include("gyro", sensors.gyro,true);
+    communication.send_stream.include("angular_vel_command", (uint8_t *)&communication.angular_velocity_command, BL_stream::types.FLOAT, sizeof(communication.angular_velocity_command),true);
+    communication.send_stream.include("m1PWM", (uint8_t *)&actuators.motor1.read(), BL_stream::types.FLOAT, sizeof(actuators.motor1.read()),true);
+    communication.send_stream.include("m2PWM", (uint8_t *)&actuators.motor2.read(), BL_stream::types.FLOAT, sizeof(actuators.motor2.read()),true);
+    communication.send_stream.include("m3PWM", (uint8_t *)&actuators.motor3.read(), BL_stream::types.FLOAT, sizeof(actuators.motor3.read()),true);
+    communication.send_stream.include("m4PWM", (uint8_t *)&actuators.motor4.read(), BL_stream::types.FLOAT, sizeof(actuators.motor4.read()),true);
     // communication.send_stream.include("mag", sensors.mag);
     // communication.send_stream.include("position", estimator.position);
     // communication.send_stream.include("velocity", estimator.velocity);
@@ -28,6 +33,7 @@ void Dasta::configCommunication()
 
 
     communication.receive_stream.include("angular_velocity_command", communication.angular_velocity_command);
+    communication.receive_stream.include("thrust_command", (uint8_t *)&thrust, BL_stream::types.FLOAT, sizeof(thrust));
     // communication.receive_stream.include("acc_bias", sensors.acc_bias_co);
     // communication.receive_stream.include("gyro_bias", sensors.gyro_bias_co);
     // communication.receive_stream.include("mag_bias", sensors.mag_bias_co);
@@ -45,5 +51,5 @@ void Dasta::configCommunication()
     communication.receive_stream.include("user_event", (uint8_t *)&decisionnal_unit.user_event, BL_stream::types.UNSIGNED_CHAR, sizeof(decisionnal_unit.user_event));
     communication.receive_stream.include("send_stream_delay", (uint8_t *)&communication.send_stream.delay, BL_stream::types.INT, sizeof(communication.send_stream.delay));
 
-    communication.send_stream.delay = 1000;
+    communication.send_stream.delay = 50;
 }
