@@ -27,7 +27,7 @@ class Dasta
 public:
     Dasta();
     ~Dasta(){};
-    void run_anguler_velocity_control(float time=millis());
+    void run_anguler_velocity_control(float time=millis()/1000.0);
     void runDecisionOnUserEvent();
     SensorPreProcessing sensors;
     Communication communication;

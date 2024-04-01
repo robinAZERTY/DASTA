@@ -22,17 +22,17 @@ SensorPreProcessing::SensorPreProcessing()
     // gyro_scale_co.cols = 3;
     // mag_scale_co.cols = 3;
 
-    acc = Vector(3);
-    gyro = Vector(3);
+    acc.alloc(3);
+    gyro.alloc(3);
 
-    acc_bias_co = Vector(3);
-    gyro_bias_co = Vector(3);
+    acc_bias_co.alloc(3);
+    gyro_bias_co.alloc(3);
 
 
-    acc_scale_co = Matrix(3, 3);
-    gyro_scale_co = Matrix(3, 3);
+    acc_scale_co.alloc(3, 3);
+    gyro_scale_co.alloc(3, 3);
 
-    tmp = Vector(3);
+    tmp.alloc(3);
 }
 
 SensorPreProcessing::~SensorPreProcessing()

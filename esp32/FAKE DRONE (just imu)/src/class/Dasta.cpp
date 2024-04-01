@@ -12,7 +12,7 @@ Dasta::Dasta()
 void Dasta::run_anguler_velocity_control(float time)
 {
     // read the sensors
-    sensors.readSensors();
+    // sensors.readSensors();
 
     // comput pid and write the control signal
     float Crx = pidRx.compute(communication.angular_velocity_command.data[0] - sensors.gyro.data[0], time);

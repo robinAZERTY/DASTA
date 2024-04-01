@@ -24,7 +24,7 @@ void stateEstimateTask(void *pvParameters)
       // entrer dans la section critique (en attente du sémaphore)
       if (xSemaphoreTake(xSemaphore, STATE_ESTIMATE_DT_ms))
         dasta.sensors.readSensors();
-      dasta.sensors.compensateGyroBias();
+      // dasta.sensors.compensateGyroBias();
       dasta.run_anguler_velocity_control();
       // dasta.estimator.run(dasta.sensors.getTime() / 1000.0);
       // quitter la section critique (rendre le sémaphore)
@@ -93,14 +93,42 @@ void printTask(void *pvParameters)
     if (now - last_time >= PRINT_DT_ms)
     {
       last_time = now;
-      Serial.print(" gyrx: ");
-      Serial.print(dasta.sensors.gyro(0));
-      Serial.print(" x rot command: ");
-      Serial.print(dasta.communication.angular_velocity_command(0));
-      Serial.print(" motor1: ");
-      Serial.print(dasta.actuators.motor1.read());
-      Serial.print(" gyro bias compensation: ");
-      Serial.println(dasta.sensors.gyro_bias_co(0));
+      // Serial.print(" gyrx: ");
+      // Serial.print(dasta.sensors.gyro(0));
+      // Serial.print(" x rot command: ");
+      // Serial.print(dasta.communication.angular_velocity_command(0));
+      // Serial.print(" motor1: ");
+      // Serial.print(dasta.actuators.motor1.read());
+      // Serial.print(" gyro bias compensation: ");
+      // Serial.print(dasta.sensors.gyro_bias_co(0));
+      Serial.print(" pidx_param: ");
+      Serial.print(dasta.pidRx.kp);
+      Serial.print(" ");
+      Serial.print(dasta.pidRx.ki);
+      Serial.print(" ");
+      Serial.print(dasta.pidRx.kd);
+      Serial.print(" ");
+      Serial.print(dasta.pidRx.maxIntegral);
+      Serial.print(" ");
+      Serial.print(dasta.pidRx.timeConstDerFilter);
+      Serial.print(" ");
+      Serial.print(dasta.pidRx.min);
+      Serial.print(" ");
+      Serial.print(dasta.pidRx.max);
+      Serial.print(" ");
+      Serial.print(" integral: ");
+      Serial.print(dasta.pidRx.integral);
+      Serial.print(" ");
+      Serial.print(" lastder: ");
+      Serial.println(dasta.pidRx.lastDerivative);
+      /*
+       float lastError;                // Last error value
+    float integral;                 // Integral term
+    float lastDerivative;           // Last derivative term
+    float lastTime;                 // Last time value
+    float deltaTime; 
+    */
+
 
       // Serial.print("\tTasks stack size left: ");
       // Serial.print(uxTaskGetStackHighWaterMark(stateEstimateTaskHandle));
@@ -137,7 +165,7 @@ void setup()
   delay(4000);
   dasta.communication.device_name = "ESP32-Bluetooth";
   dasta.communication.start();
-  // delay(1000); // wait for the serial monitor to open
+  delay(1000); // wait for the serial monitor to open
   dasta.sensors.init();
   dasta.configActuators();
 
