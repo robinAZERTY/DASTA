@@ -8,32 +8,24 @@ cette classe regroupe toutes les fonctionnaités necessaires au fonctionnement d
 #include "Communication.hpp"
 #include "Actuators.hpp"
 #include "DecisionnalUnit.hpp"
-// #include "StateEstimate.hpp"
-#include "pid.hpp"
-
+#include "StateEstimate.hpp"
 
 class Dasta
 {
-    public :
-// private:
+private:
     void configCommunication();
     void configSensorPreProcessing();
-    void configActuators();
-    Pid pidRx, pidRy, pidRz;
-    // Vector Wu = Vector(3); // angular velocity command
-    float thrust = 0.0;
-    // void configureStateEstimate();
+    void configureStateEstimate();
 
 public:
     Dasta();
     ~Dasta(){};
-    void run_anguler_velocity_control(float time=millis()/1000.0);
     void runDecisionOnUserEvent();
     SensorPreProcessing sensors;
     Communication communication;
     Actuators actuators;
     DecisionnalUnit decisionnal_unit;
-    // StateEstimate estimator;
+    StateEstimate estimator;
 };
 
 #endif // DASTA_HPP

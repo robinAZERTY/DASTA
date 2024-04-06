@@ -77,8 +77,8 @@ int MPU9250::begin(){
   if(writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) < 0){
     return -4;
   }
-  // check the WHO AM I byte, expected value is 0x71 (decimal 113) or 0x73 (decimal 115), 
-  if((whoAmI() != 113)&&(whoAmI() != 115) && (whoAmI() != 112)){
+  // check the WHO AM I byte, expected value is 0x71 (decimal 113) or 0x73 (decimal 115)
+  if((whoAmI() != 113)&&(whoAmI() != 115)){
     return -5;
   }
   // enable accelerometer and gyro
@@ -119,41 +119,41 @@ int MPU9250::begin(){
 		return -13;
 	}
 	// check AK8963 WHO AM I register, expected value is 0x48 (decimal 72)
-	// if( whoAmIAK8963() != 72 ){
-  //   return -14;
-	// }
+	if( whoAmIAK8963() != 72 ){
+    return -14;
+	}
   /* get the magnetometer calibration */
   // set AK8963 to Power Down
-  // if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
-  //   return -15;
-  // }
-  // delay(100); // long wait between AK8963 mode changes
-  // // set AK8963 to FUSE ROM access
-  // if(writeAK8963Register(AK8963_CNTL1,AK8963_FUSE_ROM) < 0){
-  //   return -16;
-  // }
-  // delay(100); // long wait between AK8963 mode changes
-  // // read the AK8963 ASA registers and compute magnetometer scale factors
-  // readAK8963Registers(AK8963_ASA,3,_buffer);
-  // _magScaleX = ((((float)_buffer[0]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
-  // _magScaleY = ((((float)_buffer[1]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
-  // _magScaleZ = ((((float)_buffer[2]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla 
-  // // set AK8963 to Power Down
-  // if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
-  //   return -17;
-  // }
-  // delay(100); // long wait between AK8963 mode changes  
-  // // set AK8963 to 16 bit resolution, 100 Hz update rate
-  // if(writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS2) < 0){
-  //   return -18;
-  // }
-  // delay(100); // long wait between AK8963 mode changes
-  // // select clock source to gyro
-  // if(writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) < 0){
-  //   return -19;
-  // }       
-  // // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
-  // readAK8963Registers(AK8963_HXL,7,_buffer);
+  if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
+    return -15;
+  }
+  delay(100); // long wait between AK8963 mode changes
+  // set AK8963 to FUSE ROM access
+  if(writeAK8963Register(AK8963_CNTL1,AK8963_FUSE_ROM) < 0){
+    return -16;
+  }
+  delay(100); // long wait between AK8963 mode changes
+  // read the AK8963 ASA registers and compute magnetometer scale factors
+  readAK8963Registers(AK8963_ASA,3,_buffer);
+  _magScaleX = ((((float)_buffer[0]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
+  _magScaleY = ((((float)_buffer[1]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
+  _magScaleZ = ((((float)_buffer[2]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla 
+  // set AK8963 to Power Down
+  if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
+    return -17;
+  }
+  delay(100); // long wait between AK8963 mode changes  
+  // set AK8963 to 16 bit resolution, 100 Hz update rate
+  if(writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS2) < 0){
+    return -18;
+  }
+  delay(100); // long wait between AK8963 mode changes
+  // select clock source to gyro
+  if(writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) < 0){
+    return -19;
+  }       
+  // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
+  readAK8963Registers(AK8963_HXL,7,_buffer);
   // estimate gyro bias
   // if (calibrateGyro() < 0) {
   //   return -20;
@@ -318,33 +318,33 @@ int MPU9250::setSrd(uint8_t srd) {
   if(writeRegister(SMPDIV,19) < 0){ // setting the sample rate divider
     return -1;
   }
-  // if(srd > 9){
-  //   // set AK8963 to Power Down
-  //   if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
-  //     return -2;
-  //   }
-  //   delay(100); // long wait between AK8963 mode changes  
-  //   // set AK8963 to 16 bit resolution, 8 Hz update rate
-  //   if(writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS1) < 0){
-  //     return -3;
-  //   }
-  //   delay(100); // long wait between AK8963 mode changes     
-  //   // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
-  //   readAK8963Registers(AK8963_HXL,7,_buffer);
-  // } else {
-  //   // set AK8963 to Power Down
-  //   if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
-  //     return -2;
-  //   }
-  //   delay(100); // long wait between AK8963 mode changes  
-  //   // set AK8963 to 16 bit resolution, 100 Hz update rate
-  //   if(writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS2) < 0){
-  //     return -3;
-  //   }
-  //   delay(100); // long wait between AK8963 mode changes     
-  //   // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
-  //   readAK8963Registers(AK8963_HXL,7,_buffer);    
-  // } 
+  if(srd > 9){
+    // set AK8963 to Power Down
+    if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
+      return -2;
+    }
+    delay(100); // long wait between AK8963 mode changes  
+    // set AK8963 to 16 bit resolution, 8 Hz update rate
+    if(writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS1) < 0){
+      return -3;
+    }
+    delay(100); // long wait between AK8963 mode changes     
+    // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
+    readAK8963Registers(AK8963_HXL,7,_buffer);
+  } else {
+    // set AK8963 to Power Down
+    if(writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) < 0){
+      return -2;
+    }
+    delay(100); // long wait between AK8963 mode changes  
+    // set AK8963 to 16 bit resolution, 100 Hz update rate
+    if(writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS2) < 0){
+      return -3;
+    }
+    delay(100); // long wait between AK8963 mode changes     
+    // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
+    readAK8963Registers(AK8963_HXL,7,_buffer);    
+  } 
   /* setting the sample rate divider */
   if(writeRegister(SMPDIV,srd) < 0){ // setting the sample rate divider
     return -4;
@@ -381,8 +381,8 @@ int MPU9250::disableDataReadyInterrupt() {
 int MPU9250::enableWakeOnMotion(float womThresh_mg,LpAccelOdr odr) {
   // use low speed SPI for register setting
   _useSPIHS = false;
-  // // set AK8963 to Power Down
-  // writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN);
+  // set AK8963 to Power Down
+  writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN);
   // reset the MPU9250
   writeRegister(PWR_MGMNT_1,PWR_RESET);
   // wait for MPU-9250 to come back up
@@ -432,9 +432,9 @@ int MPU9250::readSensor() {
   _gxcounts = (((int16_t)_buffer[8]) << 8) | _buffer[9];
   _gycounts = (((int16_t)_buffer[10]) << 8) | _buffer[11];
   _gzcounts = (((int16_t)_buffer[12]) << 8) | _buffer[13];
-  // _hxcounts = (((int16_t)_buffer[15]) << 8) | _buffer[14];
-  // _hycounts = (((int16_t)_buffer[17]) << 8) | _buffer[16];
-  // _hzcounts = (((int16_t)_buffer[19]) << 8) | _buffer[18];
+  _hxcounts = (((int16_t)_buffer[15]) << 8) | _buffer[14];
+  _hycounts = (((int16_t)_buffer[17]) << 8) | _buffer[16];
+  _hzcounts = (((int16_t)_buffer[19]) << 8) | _buffer[18];
   // transform and convert to float values
   _ax = (float)(tX[0]*_axcounts + tX[1]*_aycounts + tX[2]*_azcounts) * _accelScale;
   _ay = (float)(tY[0]*_axcounts + tY[1]*_aycounts + tY[2]*_azcounts) * _accelScale;
@@ -442,9 +442,9 @@ int MPU9250::readSensor() {
   _gx = (float)(tX[0]*_gxcounts + tX[1]*_gycounts + tX[2]*_gzcounts) * _gyroScale;
   _gy = (float)(tY[0]*_gxcounts + tY[1]*_gycounts + tY[2]*_gzcounts) * _gyroScale;
   _gz = (float)(tZ[0]*_gxcounts + tZ[1]*_gycounts + tZ[2]*_gzcounts) * _gyroScale;
-  // _hx = (float)(_hxcounts) * _magScaleX;
-  // _hy = (float)(_hycounts) * _magScaleY;
-  // _hz = (float)(_hzcounts) * _magScaleZ;
+  _hx = (float)(_hxcounts) * _magScaleX;
+  _hy = (float)(_hycounts) * _magScaleY;
+  _hz = (float)(_hzcounts) * _magScaleZ;
   _t = ((((float) _tcounts) - _tempOffset)/_tempScale) + _tempOffset;
   return 1;
 }

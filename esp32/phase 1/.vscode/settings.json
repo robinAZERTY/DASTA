@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "array": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp",
+        "utility": "cpp",
+        "limits": "cpp",
+        "type_traits": "cpp",
+        "memory_resource": "cpp",
+        "*.tcc": "cpp",
+        "cmath": "cpp",
+        "random": "cpp"
+    }
+}

@@ -224,7 +224,6 @@ class MPU9250{
     int readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest);
     int writeAK8963Register(uint8_t subAddress, uint8_t data);
     int readAK8963Registers(uint8_t subAddress, uint8_t count, uint8_t* dest);
-    public:
     int whoAmI();
     int whoAmIAK8963();
 };

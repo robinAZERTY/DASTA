@@ -22,8 +22,12 @@ void Dasta::configActuators()
     // actuators.motor4.write(0.05);
     // delay(1000);
     // actuators.motor4.write(0.0);
-    thrust = 0.0;
-    pidRx = Pid(0.0, 0.0, 0.0, 0, 0, -0.1, 0.1);
-    pidRy = Pid(0.0, 0.0, 0.0, 0, 0, -0.1, 0.1);
-    pidRz = Pid(0.0, 0.0, 0.0, 0, 0, -0.1, 0.1);    
+    // thrust = 0.2;
+    // pidRx = Pid(0.05, 0.05, 0.1, 0.1, 0.05, -0.1, 0.1);
+    // pidRy = Pid(0.05, 0.05, 0.1, 0.1, 0.05, -0.1, 0.1);
+    // pidRz = Pid(0.17, 0.2, 0.0, 0, 0, -0.2, 0.2); 
+    thrust = 0.0; 
+    pidRx = Pid(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    pidRy = Pid(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    pidRz = Pid(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);   
 }

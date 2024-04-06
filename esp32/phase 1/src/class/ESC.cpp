@@ -37,6 +37,15 @@ void ESC::detach()
 
 void ESC::write(float speed_command)
 {
+    if (state != ENGAGED)
+        write_hard(0.0);
+    else
+        write_hard(speed_command);
+}
+
+
+void ESC::write_hard(float speed_command)
+{
     this->speed_command = speed_command;
     if (speed_command <= 0)
         ledcWrite(channel, min_pwm); // stop
@@ -45,9 +54,9 @@ void ESC::write(float speed_command)
     else
         ledcWrite(channel, a * speed_command + b); // normal working condition
 }
-
 const bool ESC::runArm(const unsigned long time, const unsigned long timeout)
 {
+    write_hard(0.0);
     if (time - start_up_time < timeout)
         return false;
     state = ENGAGED;
@@ -59,3 +68,9 @@ void ESC::arm(const unsigned long timeout)
     while(!runArm(millis(), timeout))
         delay(10);
 };
+
+void ESC::disengage()
+{
+    write(0.0);
+    state = DISENGAGED;
+}

@@ -34,6 +34,9 @@ public:
     // blocking version of runArm
     void arm(const unsigned long timeout = 3000);
 
+    // disengage the ESC
+    void disengage();
+
     /*
      * set the speed of the ESC
      * @param speed: speed of the ESC, between 0 and 1
@@ -59,6 +62,11 @@ public:
     const bool engaged() const { return state == ENGAGED; };
 
 private:
+    /*
+     * set the speed of the ESC
+     * @param speed: speed of the ESC, between 0 and 1
+     */
+    void write_hard(float speed_command);
     static int nextPwmChannel;         // unique pwm channels for each instance
     static const float min_th, max_th; // min and max pulse width in seconds
     unsigned long start_up_time;       // time at which the ESC started the arming process
