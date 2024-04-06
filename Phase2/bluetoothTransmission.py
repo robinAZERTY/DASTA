@@ -186,7 +186,7 @@ def send(s, data, send_head):
         return None
     #send the data
     to_send = packedData + END_LINE_KEY  
-    s.sendall(to_send)
+    s.sendall(to_send)  
    
 '''
 _______________________________________________________
@@ -493,7 +493,7 @@ def sendTask(s,db):
         if len(data_to_send) > 0:
             send(s, data_to_send, send_head)
         #to let the other threads run
-        time.sleep(0.1)
+        time.sleep(0.01)
 
 def userInputTask(db):
     global data_to_send

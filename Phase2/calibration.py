@@ -99,10 +99,10 @@ class MPU9250:
                 self.acc_bias_cov = np.eye(3)*acc_bias_tolerance**2
                 
                 
-        def gyr_bias_calibrated(self, tolerance=0.0002):
+        def gyr_bias_calibrated(self, tolerance=0.0005):
                 return np.all(np.sqrt(np.diag(self.gyr_bias_cov))<tolerance)
         
-        def acc_bias_calibrated(self, tolerance=0.01):
+        def acc_bias_calibrated(self, tolerance=0.05):
                 return np.all(np.sqrt(np.diag(self.acc_bias_cov))<tolerance)
         
         def gyr_ortho_calibrated(self, tolerance=0.009):
@@ -244,10 +244,11 @@ def initAttitudeUsingAcc():
         '''
         pitch = np.arctan2(-imu.new_acc_sample[0], np.sqrt(imu.new_acc_sample[1]**2 + imu.new_acc_sample[2]**2))
         roll = np.arctan2(-imu.new_acc_sample[1], -imu.new_acc_sample[2])
+        print("pitch, roll =", pitch,roll)
         q0, qvec = angle2quat(0, pitch, roll, input_unit='rad')
         criticalState.orientation = Quaternion(q0,qvec[0],qvec[1],qvec[2])
         criticalState.setOriCov(5/180.0*3.14)
-        X2calib(my_ekf.x, my_ekf.P, criticalState, imu)
+        calib2X(Q, my_ekf.x, my_ekf.P, criticalState, imu)
 
 def predict():
         '''
