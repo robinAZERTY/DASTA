@@ -513,7 +513,7 @@ _______________________________________________________
 '''
 inited = False
 def main():
-    connection = connect('24:6F:28:7B:DB:22')
+    connection = connect('FC:F5:C4:27:09:16')
     if connection == None:
         exit()
 

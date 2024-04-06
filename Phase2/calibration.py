@@ -238,6 +238,16 @@ def init():
         my_ekf = ekf.Ekf(28)
         Q, my_ekf.x, my_ekf.P = calib2X(Q, my_ekf.x, my_ekf.P, criticalState, imu)
 
+def initAttitudeUsingAcc():
+        '''
+        compute the initial orientation using the accelerometer
+        '''
+        pitch = np.arctan2(-imu.new_acc_sample[0], np.sqrt(imu.new_acc_sample[1]**2 + imu.new_acc_sample[2]**2))
+        roll = np.arctan2(-imu.new_acc_sample[1], -imu.new_acc_sample[2])
+        q0, qvec = angle2quat(0, pitch, roll, input_unit='rad')
+        criticalState.orientation = Quaternion(q0,qvec[0],qvec[1],qvec[2])
+        criticalState.setOriCov(5/180.0*3.14)
+        X2calib(my_ekf.x, my_ekf.P, criticalState, imu)
 
 def predict():
         '''
