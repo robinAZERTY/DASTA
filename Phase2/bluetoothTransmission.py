@@ -474,14 +474,14 @@ def receiveTask(s):
         if new_data is not None:
             received_data.append(new_data)
         #to let the other threads run
-        time.sleep(0.001)
+        time.sleep(0.005)
                     
 def saveTask(file):
     global received_data
     while True:
         writeInDB(received_data, file)
         received_data = []
-        time.sleep(0.05)
+        time.sleep(0.005)
 
 data_to_send = []
 def sendTask(s,db):
@@ -503,7 +503,7 @@ def userInputTask(db):
         if new_data_to_send is not None:
             data_to_send.append(new_data_to_send)
         #to let the other threads run
-        time.sleep(0.1)
+        time.sleep(0.01)
 
 
 '''

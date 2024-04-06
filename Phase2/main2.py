@@ -76,7 +76,9 @@ def draw_attitude_ForEver():
     cv2.destroyAllWindows()
 
         
-
+def sendCommand():
+    #buid the rpy command from game controller and send it
+    pass
 
 def main():
     global received_orientation
@@ -86,7 +88,7 @@ def main():
     while not bluetoothTransmission.inited:
         cv2.waitKey(1)
         
-    bluetoothTransmission.data_to_send.append({"send_stream_delay": 50, "user_event": 3})
+    bluetoothTransmission.data_to_send.append({"send_stream_delay": 20, "user_event": 3})
     running_calib = True
     while(True):
         new_kalmanIt = False
@@ -107,7 +109,7 @@ def main():
                         calibration.update()
                         new_kalmanIt = True
                     if calibration.imu.calibrated() and running_calib:
-                        bluetoothTransmission.data_to_send.append({"gyr_bias_co": calibration.imu.gyr_bias_co.tolist(), "acc_bias_co": calibration.imu.acc_bias_co.tolist(), "gyr_ortho_co": calibration.imu.gyr_ortho_co.reshape(9).tolist(), "acc_ortho_co": calibration.imu.acc_ortho_co.reshape(9).tolist(), "user_event": 11}) #SEND_CALIBRATION and START_ATTITUDE_CONTROL
+                        bluetoothTransmission.data_to_send.append({"gyr_bias_co": calibration.imu.gyr_bias_co.tolist(), "acc_bias_co": calibration.imu.acc_bias_co.tolist(), "gyr_ortho_co": calibration.imu.gyr_ortho_co.reshape(9).tolist(), "acc_ortho_co": calibration.imu.acc_ortho_co.reshape(9).tolist(), "user_event": 11, "send_stream_delay":100}) #SEND_CALIBRATION and START_ATTITUDE_CONTROL
                         running_calib = False
 
 
