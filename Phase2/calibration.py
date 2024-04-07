@@ -77,6 +77,12 @@ class MPU9250:
                 self.gyr_ortho_co = np.eye(3)
                 self.acc_ortho_co = np.eye(3)
                 
+                self.gyr_bias_std_tol = 0.01
+                self.acc_bias_std_tol = 0.02
+                self.gyr_ortho_std_tol = 0.005
+                self.acc_ortho_std_tol = 0.005
+                
+                
                 
                 
 
@@ -98,18 +104,30 @@ class MPU9250:
         def setAccBiasCov(self,acc_bias_tolerance):
                 self.acc_bias_cov = np.eye(3)*acc_bias_tolerance**2
                 
+        def gyr_bias_cov_indicator(self):
+                return np.sqrt(np.max(np.diag(self.gyr_bias_cov)))
+        
+        def acc_bias_cov_indicator(self):
+                return np.sqrt(np.max(np.diag(self.acc_bias_cov)))
+        
+        def gyr_ortho_cov_indicator(self):
+                return np.sqrt(np.max(np.diag(self.gyr_ortho_cov)))
+        
+        def acc_ortho_cov_indicator(self):
+                return np.sqrt(np.max(np.diag(self.acc_ortho_cov)))
+         
                 
-        def gyr_bias_calibrated(self, tolerance=0.0005):
-                return np.all(np.sqrt(np.diag(self.gyr_bias_cov))<tolerance)
+        def gyr_bias_calibrated(self):
+                return self.gyr_bias_cov_indicator()<self.gyr_bias_std_tol
         
-        def acc_bias_calibrated(self, tolerance=0.05):
-                return np.all(np.sqrt(np.diag(self.acc_bias_cov))<tolerance)
+        def acc_bias_calibrated(self):
+                return self.acc_bias_cov_indicator()<self.acc_bias_std_tol
         
-        def gyr_ortho_calibrated(self, tolerance=0.009):
-                return np.all(np.sqrt(np.diag(self.gyr_ortho_cov))<tolerance)
+        def gyr_ortho_calibrated(self):
+                return self.gyr_ortho_cov_indicator()<self.gyr_ortho_std_tol
         
-        def acc_ortho_calibrated(self, tolerance=0.009):
-                return np.all(np.sqrt(np.diag(self.acc_ortho_cov))<tolerance)
+        def acc_ortho_calibrated(self):
+                return self.acc_ortho_cov_indicator()<self.acc_ortho_std_tol
         
         def calibrated(self):
                 return self.gyr_bias_calibrated() and self.acc_bias_calibrated() and self.gyr_ortho_calibrated() and self.acc_ortho_calibrated()
@@ -244,10 +262,10 @@ def initAttitudeUsingAcc():
         '''
         pitch = np.arctan2(-imu.new_acc_sample[0], np.sqrt(imu.new_acc_sample[1]**2 + imu.new_acc_sample[2]**2))
         roll = np.arctan2(-imu.new_acc_sample[1], -imu.new_acc_sample[2])
-        print("pitch, roll =", pitch,roll)
+        # print("pitch, roll =", pitch,roll)
         q0, qvec = angle2quat(0, pitch, roll, input_unit='rad')
         criticalState.orientation = Quaternion(q0,qvec[0],qvec[1],qvec[2])
-        criticalState.setOriCov(5/180.0*3.14)
+        criticalState.setOriCov(20/180.0*3.14)
         calib2X(Q, my_ekf.x, my_ekf.P, criticalState, imu)
 
 def predict():

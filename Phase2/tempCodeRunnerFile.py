@@ -1,1 +1,1 @@
-received_orientation
+gravity

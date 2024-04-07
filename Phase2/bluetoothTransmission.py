@@ -179,7 +179,7 @@ def send(s, data, send_head):
         print("Error: header not received yet, can't send the data")
         return None
     #pack the data
-    print("sending : " + str(data[0]))
+    # print("sending : " + str(data[0]))
     packedData = packData(data[0], send_head)
     data.pop(0) 
     if packedData == None:
@@ -468,7 +468,12 @@ received_data = []
 def receiveTask(s):
     global received_data
     while True:
-        new_data = receive(s)
+        new_data = None
+        try:
+            new_data = receive(s)
+        except Exception as e:
+            print("Error: can't receive the data")
+            print(e)
         if receive_head is None:
             continue
         if new_data is not None:
