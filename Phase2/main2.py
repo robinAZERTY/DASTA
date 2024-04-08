@@ -6,37 +6,18 @@ import threading
 import calibration
 import progressbar
 import sys
+# import pygame
+import gamecontroller
+import FakeDrone
+
+useFakeDrone = True
+
+quad = FakeDrone.FakeQuad()
+               
 
 received_orientation = [1,0,0,0]
-def draw_box(img):
-    #project the box on the image using the calibration.prject function
-    dx = 0.07
-    dy = 0.055
-    dz = 0.035
-    vertices = np.array([[-dx/2,-dy/2,-dz/2],
-                            [dx/2,-dy/2,-dz/2],
-                            [dx/2,dy/2,-dz/2],
-                            [-dx/2,dy/2,-dz/2],
-                            [-dx/2,-dy/2,dz/2],
-                            [dx/2,-dy/2,dz/2],
-                            [dx/2,dy/2,dz/2],
-                            [-dx/2,dy/2,dz/2]])
-    #project the vertices
-    projected = []
-    for vertex in vertices:
-        projected.append(calibration.project(vertex,np.array(received_orientation),np.array([0,0,0]),np.array([-0.2,0,-0.03]),np.array([ 0.5, 0.5, 0.5, 0.5 ]),300))
-        # projected.append(calibration.hcmln(calibration.my_ekf.x,0,vertex))
-    # print(projected[0], img.shape)
-    #draw the lines
-    for i, j in [(0, 1), (1, 2), (2, 3), (3, 0),
-                    (4, 5), (5, 6), (6, 7), (7, 4),
-                    (0, 4), (1, 5), (2, 6), (3, 7)]:
-            cv2.line(img,
-                            (round(projected[i][0]+img.shape[1]/2),
-                            round(projected[i][1]+img.shape[0]/2)),
-                            (round(projected[j][0]+img.shape[1]/2),
-                            round(projected[j][1]+img.shape[0]/2)), (255,255,255), 1)
-
+received_position = [0,0,0]
+  
 
 def setup():
     calibration.env= calibration.environment()
@@ -62,101 +43,144 @@ def setup():
     calibration.init()
 
 
-def draw_attitude():
-    # while True:
-    img = np.zeros((300,300,3), np.uint8)
-    # add indicator of calibration state using calibration.imu.gyr_bias_calibrated(), calibration.imu.acc_bias_calibrated(), calibration.imu.gyr_ortho_calibrated(), calibration.imu.acc_ortho_calibrated()
-    cv2.putText(img, "GyrBiasCalibrated: " + str(calibration.imu.gyr_bias_calibrated()), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    cv2.putText(img, "AccBiasCalibrated: " + str(calibration.imu.acc_bias_calibrated()), (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    cv2.putText(img, "GyrOrthoCalibrated: " + str(calibration.imu.gyr_ortho_calibrated()), (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    cv2.putText(img, "AccOrthoCalibrated: " + str(calibration.imu.acc_ortho_calibrated()), (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    draw_box(img) 
-    cv2.imshow("Box", img)
-
-running_calib = True
+    
+running_calib = not useFakeDrone
 
 def draw():
-    while not bluetoothTransmission.inited:
-        cv2.waitKey(1)
+    while not bluetoothTransmission.inited and not useFakeDrone:
+        time.sleep(0.1)
+    time.sleep(2)
+    
 
-    print("gyr_bias, acc_bias, gyr_ortho, acc_ortho")
-    print("\n\n\n\n")
+
+
+    # print("gyr_bias, acc_bias, gyr_ortho, acc_ortho")
+    # print("\n\n\n\n")
     gyr_bias_bar = progressbar.ProgressBar(maxval=100, line_offset= 1)
-    acc_bias_bar = progressbar.ProgressBar(maxval=100, line_offset= 2)
-    gyr_ortho_bar = progressbar.ProgressBar(maxval=100, line_offset= 3)
-    acc_ortho_bar = progressbar.ProgressBar(maxval=100, line_offset= 4)
+    # acc_bias_bar = progressbar.ProgressBar(maxval=100, line_offset= 2)
+    # gyr_ortho_bar = progressbar.ProgressBar(maxval=100, line_offset= 3)
+    # acc_ortho_bar = progressbar.ProgressBar(maxval=100, line_offset= 4)
     # Create a file descriptor for regular printing as well
-    print_fd = progressbar.LineOffsetStreamWrapper(lines=0, stream=sys.stdout)
-    assert print_fd
+    # print_fd = progressbar.LineOffsetStreamWrapper(lines=0, stream=sys.stdout)
+    # assert print_fd
 
     
     while True:
-        draw_attitude()
-        time.sleep(0.05)
-        gyr_bias_bar.update(min(100,int(100*calibration.imu.gyr_bias_std_tol/calibration.imu.gyr_bias_cov_indicator())))
-        acc_bias_bar.update(min(100,int(100*calibration.imu.acc_bias_std_tol/calibration.imu.acc_bias_cov_indicator())))
-        gyr_ortho_bar.update(min(100,int(100*calibration.imu.gyr_ortho_std_tol/calibration.imu.gyr_ortho_cov_indicator())))
-        acc_ortho_bar.update(min(100,int(100*calibration.imu.acc_ortho_std_tol/calibration.imu.acc_ortho_cov_indicator())))
-
-        key = cv2.waitKey(1)
-        if key == ord('q'):
-            break
-    
-    bluetoothTransmission.data_to_send.append({"user_event": 13}) #EMERGENCY_STOP
-    gyr_bias_bar.finish()
-    acc_bias_bar.finish()
-    gyr_ortho_bar.finish()
-    acc_ortho_bar.finish()
-    cv2.destroyAllWindows()
-
+    #     clock.tick(FPS)
+    #     gamecontroller.run()
+    #     draw_attitude()
+    #     #update display
+    #     pygame.display.flip()
         
-def sendCommand():
-    #buid the rpy command from game controller and send it
-    pass
+        gyr_bias_bar.update(min(100,int(100*calibration.imu.gyr_bias_std_tol/calibration.imu.gyr_bias_cov_indicator())))
+        # acc_bias_bar.update(min(100,int(100*calibration.imu.acc_bias_std_tol/calibration.imu.acc_bias_cov_indicator())))
+        # gyr_ortho_bar.update(min(100,int(100*calibration.imu.gyr_ortho_std_tol/calibration.imu.gyr_ortho_cov_indicator())))
+        # acc_ortho_bar.update(min(100,int(100*calibration.imu.acc_ortho_std_tol/calibration.imu.acc_ortho_cov_indicator())))
+
+        # for event in pygame.event.get():
+        #     if event.type == pygame.QUIT:
+        #         pygame.quit()
+        #         bluetoothTransmission.data_to_send.append({"user_event": 13}) #EMERGENCY_STOP
+ 
+        
+    
+    # gyr_bias_bar.finish()
+    # acc_bias_bar.finish()
+    # gyr_ortho_bar.finish()
+    # acc_ortho_bar.finish()
+    # cv2.destroyAllWindows()
+
 
 def main():
-    global received_orientation, running_calib
+    global received_orientation, running_calib, received_position
+    last_time = time.time()
     setup()
     firstEfkIt = True
-    while not bluetoothTransmission.inited:
+    while not bluetoothTransmission.inited and not useFakeDrone:
         cv2.waitKey(1)
 
 
     bluetoothTransmission.data_to_send.append({"send_stream_delay": 10, "user_event": 3})
     while(True):
         new_kalmanIt = False
-        for buffer in bluetoothTransmission.received_data:
-            for data in buffer:
-                # print(data)
-                if data is None:
-                    continue
-                if "orientation" in data:
-                    received_orientation = data["orientation"]
-                if "time" in data and "gyro_raw" in data and "acc_raw" in data:
-                    calibration.imu.time = data["time"]/1000
-                    calibration.imu.new_gyr_sample = np.array(data["gyro_raw"])
-                    calibration.imu.new_acc_sample = np.array(data["acc_raw"])
-                    if firstEfkIt:
-                        calibration.initAttitudeUsingAcc()
-                        firstEfkIt = False
-                    if running_calib:
-                        calibration.predict()
-                        calibration.update()
-                        new_kalmanIt = True
-                if calibration.imu.calibrated() and running_calib:
-                    bluetoothTransmission.data_to_send.append({"gyr_bias_co": calibration.imu.gyr_bias_co.tolist(), "acc_bias_co": calibration.imu.acc_bias_co.tolist(), "gyr_ortho_co": calibration.imu.gyr_ortho_co.reshape(9).tolist(), "orientation" : calibration.criticalState.orientation.elements.tolist(),"acc_ortho_co": calibration.imu.acc_ortho_co.reshape(9).tolist(), "user_event": 11, "send_stream_delay":50}) #SEND_CALIBRATION and START_ATTITUDE_CONTROL
-                    running_calib = False
+        to_send = {}
+        if not useFakeDrone:
+            for buffer in bluetoothTransmission.received_data:
+                for data in buffer:
+                    # print(data)
+                    if data is None:
+                        continue
+                    if "orientation" in data:
+                        # received_orientation = data["orientation"]
+                        gamecontroller.display_attitude = data["orientation"]
+                    if "time" in data and "gyro_raw" in data and "acc_raw" in data:
+                        calibration.imu.time = data["time"]/1000
+                        calibration.imu.new_gyr_sample = np.array(data["gyro_raw"])
+                        calibration.imu.new_acc_sample = np.array(data["acc_raw"])
+                        if firstEfkIt:
+                            calibration.initAttitudeUsingAcc()
+                            firstEfkIt = False
+                        if running_calib:
+                            calibration.predict()
+                            calibration.update()
+                            new_kalmanIt = True
+                    if calibration.imu.calibrated() and running_calib:
+                        to_send["gyr_bias_co"] = calibration.imu.gyr_bias_co.tolist()
+                        to_send["acc_bias_co"] = calibration.imu.acc_bias_co.tolist()
+                        to_send["gyr_ortho_co"] = calibration.imu.gyr_ortho_co.reshape(9).tolist()
+                        to_send["acc_ortho_co"] = calibration.imu.acc_ortho_co.reshape(9).tolist()
+                        to_send["user_event"] = 11
+                        to_send["send_stream_delay"] = 50
+                        running_calib = False
 
 
-        # if new_kalmanIt:
-        #     bluetoothTransmission.data_to_send.append({"orientation": calibration.criticalState.orientation.elements.tolist()}) #SEND_ATTITUDE
-        bluetoothTransmission.received_data = []        #close the window
-        time.sleep(0.001)
+            if new_kalmanIt:
+                to_send["orientation"] = calibration.criticalState.orientation.elements.tolist()
+                # print("orientation : " + str(to_send["orientation"]))
+        else:
+            dt = time.time()-last_time
+            last_time = time.time()
+            quad.run(gamecontroller.x*0.5,gamecontroller.y*0.5,gamecontroller.z,gamecontroller.thrust+gamecontroller.ThrustTilte,dt)
+            # received_orientation = quad.state.orientation.elements
+            # received_position = quad.state.position
+            gamecontroller.display_attitude = quad.state.orientation.elements.tolist()
+            gamecontroller.display_position = quad.state.position.tolist()
+            # received_orientation = quad.state.orientation.elements.tolist()
+            received={}
+            received["time"] = int(time.time()*1000)
+            received["gyro_raw"] = quad.imu.gyr.tolist()
+            received["acc_raw"] = quad.imu.acc.tolist()
+            received["orientation"] = gamecontroller.display_attitude
+            received["position"] = gamecontroller.display_position
+            received["w1"] = quad.engines[0].u
+            received["w2"] = quad.engines[1].u
+            received["w3"] = quad.engines[2].u
+            received["w4"] = quad.engines[3].u
+            received["angular_velocity_command"] = quad.angular_vel_command.tolist()
+            bluetoothTransmission.received_data.append(received)
+            if not running_calib:
+                to_send["rpy"] = [gamecontroller.x*0.5,gamecontroller.y*0.5,0]
+                to_send["angular_velocity_command"] = [0,0,gamecontroller.z]
+                to_send["thrust"] = gamecontroller.thrust+gamecontroller.ThrustTilte
+       
+        if len(to_send.keys()) > 0:
+            bluetoothTransmission.data_to_send.append(to_send)
+            # print("sending : " + str(to_send))
+        
+        print(bluetoothTransmission.received_data)
+        # bluetoothTransmission.data_to_send = []
+        bluetoothTransmission.received_data = [] 
+
+
+        time.sleep(0.01)
     
 if __name__ == "__main__":
-    bluetoothTransmission.main()#init the bluetooth
+    if not useFakeDrone:
+        bluetoothTransmission.main()#init the bluetooth
     threading.Thread(target=main).start()
     threading.Thread(target=draw).start()
+    threading.Thread(target=gamecontroller.main).start()
+    # threading.Thread(target=gamecontroller.main).start()
 
 '''
 sending : {

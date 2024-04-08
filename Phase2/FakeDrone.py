@@ -20,18 +20,20 @@ class FakeEngine:
     def __init__(self):
         self.propeller = FakePropeller()
         self.cw = 1
+        self.speedNoise = 10
         self.max_speed = 2513 #rad/s
         self.time_constant = 0.15
         self.speed = 0
         self.position = np.array([0,0,0])
         self.in_field_velocity = np.array([0,0,0])
-       
+        self.u = 0
         
     def update(self, u, air_rotation, time_step):
+        self.u = u
         alpha = np.exp(-time_step/self.time_constant)
         self.speed *= alpha
         self.speed += (1-alpha)*u*self.max_speed
-        return self.propeller.update(self.speed-air_rotation)
+        return self.propeller.update(self.speed-air_rotation+np.random.normal(0,self.speedNoise))
 
 class FakeIMU:
     def __init__(self):
@@ -62,10 +64,11 @@ class Pid:
     
     def update(self, error, time_step):
         self.integral += error*time_step
-        if self.integral > self.max_integral:
-            self.integral = self.max_integral
-        elif self.integral < -self.max_integral:
-            self.integral = -self.max_integral
+        if self.integral*self.ki > self.max_integral:
+            self.integral = self.max_integral/self.ki
+        elif self.integral*self.ki < -self.max_integral:
+            self.integral = -self.max_integral/self.ki
+            
             
         derivative = (error-self.prev_error)/time_step
         output = self.kp*error + self.ki*self.integral + self.kd*derivative
@@ -102,11 +105,12 @@ class FakeQuad:
         self.state = FakeState()
         self.imu = FakeIMU()
         
-        self.rollPid = Pid(0.05, 0.1, 0.005, 0.2, -0.2, 0.5)
-        self.pitchPid = Pid(0.05, 0.1, 0.005, 0.2, -0.2, 0.5)
-        self.yawPid = Pid(0.16, 0.2, 0.00, 0.2, -0.2, 0.5)
+        self.rollPid = Pid(0.1, 0.1, 0.005, 0.2, -0.2, 0.1)
+        self.pitchPid = Pid(0.1, 0.1, 0.005, 0.2, -0.2, 0.1)
+        self.yawPid = Pid(0.20, 0.15, 0.00, 0.2, -0.2, 0.15)
+        self.angular_vel_command = np.array([0,0,0])
         
-    def run(self, wx, wy, wz, throttle, dt):
+    def rotSpeedControl(self, wx, wy, wz, throttle, dt):
         '''
         float Crx = pidRx.compute(communication.angular_velocity_command.data[0] - sensors.gyro.data[0], time);
         float Cry = pidRy.compute(communication.angular_velocity_command.data[1] - sensors.gyro.data[1], time);
@@ -131,10 +135,11 @@ class FakeQuad:
         }
     '''
         
+        self.angular_vel_command = np.array([wx, wy, wz])
+        
         Crx = self.rollPid.update(wx+self.state.omega[0], dt)
         Cry = self.pitchPid.update(wy+self.state.omega[1], dt)
         Crz = self.yawPid.update(wz+self.state.omega[2], dt)
-        print(Crx, Cry, Crz)
         # Crx = wx
         # Cry = wy
         # Crz = wz
@@ -144,23 +149,51 @@ class FakeQuad:
         c3 = -Crx - Cry - Crz
         c4 = Crx - Cry + Crz
         
+        up = self.state.orientation.rotate(np.array([0,0,1]))
+        compensated_throttle = throttle/up[2]
+        
         max_command = max(abs(c1), abs(c2), abs(c3), abs(c4))
         relative_correction = 0.8
-        if max_command > 1.0 - relative_correction*throttle or max_command < -relative_correction*throttle:
-            scale = (1.0 + relative_correction*throttle)/max(max_command, 1.0 - relative_correction*throttle)
+        if max_command > 1.0 - relative_correction*compensated_throttle or max_command < -relative_correction*compensated_throttle:
+            scale = (1.0 + relative_correction*compensated_throttle)/max(max_command, 1.0 - relative_correction*compensated_throttle)
             c1 *= scale
             c2 *= scale
             c3 *= scale
             c4 *= scale
             
-        c1 += throttle
-        c2 += throttle
-        c3 += throttle
-        c4 += throttle
+        c1 += compensated_throttle
+        c2 += compensated_throttle
+        c3 += compensated_throttle
+        c4 += compensated_throttle
+        
         
         return self.update([c1, c2, c3, c4], dt)
         
-        
+    def run(self, roll, pitch, rz, throttle, dt):
+        angle = np.linalg.norm([roll, pitch])
+        if abs(angle) < 1e-6:
+            axis = np.array([0,0,1])
+        else:
+            axis = np.array([-roll, -pitch, 0])/angle
+        #compute the quaternion from the angle and axis
+        q1 = Quaternion(axis=axis, angle=angle)
+        #rotate [1,0,0] by the quaternion to get the current forward vector
+        forward = self.state.orientation.rotate(np.array([1,0,0]))
+        yaw = np.arctan2(forward[1], forward[0])
+        q_yaw = Quaternion(axis=np.array([0,0,1]), angle=yaw)
+        q = q_yaw*q1
+        #compute the current yaw
+        forward = 0.05
+        step = 0.001
+        q2 = Quaternion.slerp(self.state.orientation, q, amount=forward-step)
+        q3 = Quaternion.slerp(self.state.orientation, q, amount=forward+step)
+        #compute the angular velocity
+        qd = (q3-q2)/(2*step)
+        w = qd*self.state.orientation
+        w = -2*np.array([w[1], w[2], w[3]])
+        # print(w)
+        return self.rotSpeedControl(10*w[0], 10*w[1], rz, throttle, dt)
+    
     def update(self, u, time_step, gravity=9.81):
         EngineRes = np.array([engine.update(u[i], -self.state.omega[2], time_step) for i, engine in enumerate(self.engines)])
         #compute the total vector thrust (POA and magnitude)
