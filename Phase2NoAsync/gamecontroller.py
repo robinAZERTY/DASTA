@@ -11,6 +11,12 @@ z = 0
 thrust = 0
 ThrustTilte = 0
 
+last_x = 0
+last_y = 0
+last_z = 0
+last_thrust = 0
+last_ThrustTilte = 0
+
 pygame.init()
 pygame.joystick.init()
 
@@ -24,6 +30,8 @@ pygame.display.set_caption("Joysticks")
 
 #create empty list to store joysticks
 joysticks = []
+
+new_data = False#flag to indicate new data has been received
 
 display_attitude = [1, 0, 0, 0]
 display_position = [0, 0, 0]
@@ -56,10 +64,20 @@ def draw_box():
                             (round(projected[j][0] + screen.get_width()/2),
                             round(projected[j][1] + screen.get_height()/2)), 1)
 
-#define player colour
+def is_new_data():
+    global x, y, z, thrust, ThrustTilte, last_x, last_y, last_z, last_thrust, last_ThrustTilte, new_data
+    if (x!=last_x or y!=last_y or z!=last_z or thrust!=last_thrust or ThrustTilte!=last_ThrustTilte):
+        last_x = x
+        last_y = y
+        last_z = z
+        last_thrust = thrust
+        last_ThrustTilte = ThrustTilte
+        return True
+    return False
+
 #game loop
-def run():
-    global x, y, z, thrust, ThrustTilte
+def run_controller():
+    global x, y, z, thrust, ThrustTilte, last_x, last_y, last_z, last_thrust, last_ThrustTilte, new_data
     screen.fill(pygame.Color("midnightblue"))
     draw_box()
     pygame.display.flip()
@@ -86,26 +104,29 @@ def run():
                 ThrustTilte = 0
         else:
             thrust = 0.1 * thrustAxis
-    # print("x: ", x, "y: ", y, "z: ", z, "thrust: ", thrust, "ThrustTilte: ", ThrustTilte)
+                        
 clock = pygame.time.Clock()
 FPS = 60
 
-def main():
-  running = True
-  while running:
-      clock.tick(FPS)
-      
-      for event in pygame.event.get():
-          if event.type == pygame.JOYDEVICEADDED:
-              joy = pygame.joystick.Joystick(event.device_index)
-              joysticks.append(joy)
-          #quit program
-          if event.type == pygame.QUIT:
-              print("QUITTING")
-              running = False
-      run()
-
-  pygame.quit()
+running = True
+def run():
+    global running
+    if not running:
+        return
+    clock.tick(FPS)
+    for event in pygame.event.get():
+        if event.type == pygame.JOYDEVICEADDED:
+            joy = pygame.joystick.Joystick(event.device_index)
+            joysticks.append(joy)
+        #quit program
+        if event.type == pygame.QUIT:
+            print("QUITTING")
+            running = False
+            pygame.quit()
+    if running:
+        run_controller()
+    
 
 if __name__ == "__main__":
-    main()
+    while True:
+        run()

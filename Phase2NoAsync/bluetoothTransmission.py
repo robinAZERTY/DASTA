@@ -1,18 +1,30 @@
 import socket
 import time
 import struct
-import threading
 import pprint
+import threading
 pp = pprint.PrettyPrinter(depth=4)
 
+fake_transmission = False
+use_async_receive = True
+print_transmission = False
+print_reception = False
+
+received_data = []
+data_to_send = []
+inited = False
 
 
+default_bl_address = '24:6F:28:7B:DB:22'
 
 STD_TYPE_KEY = ['c', 'i', 'Q', 'f', 'd','B']
 VECTOR_KEY = 'v'
 MATRIX_KEY = 'm'
 VECTOR_CONTENT_TYPE_KEY = 'f'
 VECTOR_CONTENT_TYPE_SIZE = 4
+
+
+bl_connection = None
 
 '''
 _______________________________________________________
@@ -21,20 +33,15 @@ _______________________________________________________
 '''
 #connect to the Bluetooth device
 def connect(address, port=1 , max_attempts=10):
-    #disconeect the device if it was already connected
-    try:
-        s.close()
-    except:
-        pass
-    
+    global bl_connection
+    if bl_connection is None:
+        bl_connection = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
     print("Connecting to " + str(address) + " on port " + str(port) + "...")
-    #create the socket
-    s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
     #connect to the server
     attempts = 0
     while attempts < max_attempts:
         try:
-            s.connect((address, port))
+            bl_connection.connect((address, port))
             break
         except socket.error as e:
             print("Error: socket error, retrying...")
@@ -43,10 +50,12 @@ def connect(address, port=1 , max_attempts=10):
             time.sleep(1)
     if attempts == max_attempts:
         print("Error: can't connect to the server")
-        return None
+        bl_connection = None
+        return
     
+    if not use_async_receive:
+        bl_connection.settimeout(0.001)
     print("Connected")
-    return s
 
 '''
 _______________________________________________________
@@ -56,7 +65,7 @@ _______________________________________________________
 END_LINE_KEY = "end_line\n".encode("utf-8")
 
 #when we receive the header, we need to decode it to know how to decode the data
-def decodeHeader(header):
+def decode_header(header):
     #decode the header witch is in ascii like "name:type:size, name:type:size, ..."
     try:
         header = header.decode("utf-8")
@@ -131,21 +140,21 @@ def getTypeKey(var):
         return None
     
     
-def packOneData(OneData, formatt):
+def packOne_data(One_data, formatt):
     packedData = None
     if formatt["type"] in STD_TYPE_KEY:
-        packedData = struct.pack(formatt["type"], OneData)
+        packedData = struct.pack(formatt["type"], One_data)
     elif formatt["type"] == VECTOR_KEY:
         #pack the vector
         packedData = b''
-        for i in range(len(OneData)):
-            packedData += struct.pack(VECTOR_CONTENT_TYPE_KEY, OneData[i])
+        for i in range(len(One_data)):
+            packedData += struct.pack(VECTOR_CONTENT_TYPE_KEY, One_data[i])
     elif formatt["type"] == MATRIX_KEY:
         #pack the matrix
         packedData = b''
         for i in range(formatt["row"]):
-            for j in range(len(OneData[i])):
-                packedData += struct.pack(VECTOR_CONTENT_TYPE_KEY, OneData[i][j])
+            for j in range(len(One_data[i])):
+                packedData += struct.pack(VECTOR_CONTENT_TYPE_KEY, One_data[i][j])
     else:
         print("Error: unknown type")
         return None
@@ -156,21 +165,21 @@ def packOneData(OneData, formatt):
     
     return packedData
 
-def packData(data, header):
+def pack_data(data, header):
     #data is a dict
     #header is a list of dict
     
-    packedData = b''
+    packed_data = b''
     send_register = 0
     for i in range(len(header)):
         #pack the data
         if header[i]["name"] in data:
             send_register += 1 << i
-            packedData += packOneData(data[header[i]["name"]], header[i])
-    if len(packedData) == 0:
+            packed_data += packOne_data(data[header[i]["name"]], header[i])
+    if len(packed_data) == 0:
         return None   
       
-    return struct.pack("I", send_register) + packedData
+    return struct.pack("I", send_register) + packed_data
 
 send_head = None
 
@@ -178,14 +187,14 @@ def send(s, data, send_head):
     if send_head == None:
         print("Error: header not received yet, can't send the data")
         return None
-    #pack the data
-    # print("sending : " + str(data[0]))
-    packedData = packData(data[0], send_head)
+    packed_data = pack_data(data[0], send_head)
+    if print_transmission:
+        print("sending : " + str(data[0]) + " packed : " + str(packed_data))
     data.pop(0) 
-    if packedData == None:
+    if packed_data == None:
         return None
     #send the data
-    to_send = packedData + END_LINE_KEY  
+    to_send = packed_data + END_LINE_KEY  
     s.sendall(to_send)  
    
 '''
@@ -196,22 +205,22 @@ _______________________________________________________
 RECEIVE_HEADER_KEY = "send_stream:".encode("utf-8")
 
 #decode the data knowing his format (name, type, size and additional info)
-def unpackOneData(oneData, formatt):
-    # print("unpacking : " + str(oneData) + " with format : " + str(formatt))
+def unpack_one_data(one_data, formatt):
+    # print("unpacking : " + str(one_data) + " with format : " + str(formatt))
     #check if the size of the data is correct
-    if len(oneData) != formatt["size"]:
-        print("Error: the size of the data is not correct")
+    if len(one_data) != formatt["size"]:
+        # print("Error: the size of the data is not correct")
         return None
     
     size = formatt["size"]
     for type_key in STD_TYPE_KEY:
         if formatt["type"] == type_key:
-            return struct.unpack(type_key, oneData[:size])[0]
+            return struct.unpack(type_key, one_data[:size])[0]
     if formatt["type"] == VECTOR_KEY:
         #unpack the vector
         vector = []
         for i in range(formatt["size"]//VECTOR_CONTENT_TYPE_SIZE):
-            vector.append(struct.unpack(VECTOR_CONTENT_TYPE_KEY, oneData[i*4:(i+1)*4])[0])
+            vector.append(struct.unpack(VECTOR_CONTENT_TYPE_KEY, one_data[i*4:(i+1)*4])[0])
         return vector
     elif formatt["type"] == MATRIX_KEY:
         #unpack the matrix
@@ -220,8 +229,7 @@ def unpackOneData(oneData, formatt):
             vector = []
             cols = formatt["size"]//formatt["row"]//VECTOR_CONTENT_TYPE_SIZE
             for j in range(cols):
-                index = i*formatt["size"]//formatt["row"] + j
-                vector.append(struct.unpack(VECTOR_CONTENT_TYPE_KEY, oneData[i*formatt["row"]*VECTOR_CONTENT_TYPE_SIZE+j*VECTOR_CONTENT_TYPE_SIZE:(i*formatt["row"]+j+1)*VECTOR_CONTENT_TYPE_SIZE])[0])
+                vector.append(struct.unpack(VECTOR_CONTENT_TYPE_KEY, one_data[i*formatt["row"]*VECTOR_CONTENT_TYPE_SIZE+j*VECTOR_CONTENT_TYPE_SIZE:(i*formatt["row"]+j+1)*VECTOR_CONTENT_TYPE_SIZE])[0])
             matrix.append(vector)
         return matrix
     else:
@@ -230,7 +238,7 @@ def unpackOneData(oneData, formatt):
     
     
 #decode an entire line of bytes of data according to the header
-def unpackLine(line, header):
+def unpack_line(line, header):
     #assumming that the line includes the stream register and the data one after the other, in bytes
     stream_register = struct.unpack("I", line[:4])[0]
     data = line[4:]
@@ -240,7 +248,7 @@ def unpackLine(line, header):
         if stream_register & (1 << i):
             data_size += header[i]["size"]
     if data_size != len(data):
-        print("Error: the size of the line is not correct")
+        # print("Error: the size of the line is not correct")
         return None
     
     data_dict = {}
@@ -248,8 +256,8 @@ def unpackLine(line, header):
     for i in range(len(header)):
         #if the stream register is true for the i-th data meaning that the i-th data is present in the line
         if stream_register & (1 << i):
-            oneData = data[:header[i]["size"]]
-            data_dict[header[i]["name"]] = unpackOneData(oneData, header[i])
+            one_data = data[:header[i]["size"]]
+            data_dict[header[i]["name"]] = unpack_one_data(one_data, header[i])
             #remove this data from the line
             data = data[header[i]["size"]:]
     return data_dict
@@ -261,10 +269,12 @@ receive_buffer = b''
 
 DEBUG = True
 
-def receive(s):
+#import select
+def receive(bl_connection):
     datas = []
     global receive_buffer
-    receive_buffer += s.recv(1024)
+
+    receive_buffer += bl_connection.recv(1024)    
     #split the receive_buffer by the end line key
     lines = receive_buffer.split(END_LINE_KEY)
     #décaler la liste de 1 pour enlever le dernier élément qui n'est pas complet
@@ -277,7 +287,7 @@ def receive(s):
         #decode the header if the line begins with the header key
         if line[:len(RECEIVE_HEADER_KEY)] == RECEIVE_HEADER_KEY:
             head_bytes = line[len(RECEIVE_HEADER_KEY):]
-            tmp = decodeHeader(head_bytes)
+            tmp = decode_header(head_bytes)
             if DEBUG:
                 print("receive_head : ")
                 pp.pprint(tmp)
@@ -288,7 +298,7 @@ def receive(s):
         elif line[:len(SEND_HEADER_KEY)] == SEND_HEADER_KEY:
             head_bytes = line[len(SEND_HEADER_KEY):]
             
-            tmp = decodeHeader(head_bytes)
+            tmp = decode_header(head_bytes)
             if DEBUG:
                 print("send_head : ")
                 pp.pprint(tmp)
@@ -301,11 +311,10 @@ def receive(s):
                 print("Error: header not received yet, can't decode the data")
                 return None
             #decode the data
-            new_datas = unpackLine(line, receive_head)
+            new_datas = unpack_line(line, receive_head)
+            if print_reception:
+                print("received : " + str(new_datas))
             datas.append(new_datas)
-            # if DEBUG:
-            #     print("new_datas : ")
-            #     pp.pprint(new_datas)
     
     if len(datas) == 0:
         return None
@@ -348,167 +357,51 @@ def writeInDB(data,db)->None:
 
     pass
     
-    
-'''
-_______________________________________________________
-_____________________READ USER IN______________________
-_______________________________________________________
-'''
-  
-
-def userInput(send_head,db)->dict:
-    '''
-    this function is called nonstop
-    args:
-        send_head : a list of dict wich describe all the data the drone can understand (look at the fake_send_head above for an example)
-        db : the dataBase object
-    return:
-        data_to_send : a dict with only the data the user want to send to the drone, it can be uses or not
-        For example :
-            {
-                "event code": 0,
-                "posCommand": [0.0, 0.0, 0.0, 0.0]
-            }
-            
-    1 - wait for a new event in the dataBase (for new content)
-    2 - pack the data as a dictionnary
-    3 - clear the event in the dataBase (remove the data we just packed)
-    4 - return the packed data     
-    '''
-    return None
-
-def userInputTest(send_head,db)->dict:
-    '''
-    use the terminal input to listen to the user
-    
-    Re : the last element is the userCommand 
-    wich is in cpp :
-        enum UserEvent
-            {
-                None,
-                StartStateEstimate,
-                StopStateEstimate,
-                StartStream,
-                StopStream,
-                EnableStateEstimateStream,
-                DisableStateEstimateStream,
-                EnableSensorStream,
-                DisableSensorStream,
-            };  
-    '''
-    
-    userKey =  input("Enter a key to transmite : ")
-    keys = [send_head[i]["name"] for i in range(len(send_head))]
-    if userKey not in keys:
-        print("Error: unknown key")
-        return userInputTest(send_head,db)
-    expectedType = send_head[keys.index(userKey)]["type"]
-    
-    userValue = input("Enter a " + expectedType + " : ")
-    #convert the value to the correct type
-    try :
-        if send_head[keys.index(userKey)]["type"] == "i":
-            userValue = int(userValue)
-        elif send_head[keys.index(userKey)]["type"] == "f":
-            userValue = float(userValue)
-        elif send_head[keys.index(userKey)]["type"] == "c":
-            userValue = str(userValue)[0]
-        elif send_head[keys.index(userKey)]["type"] == "s":
-            userValue = str(userValue)
-        elif send_head[keys.index(userKey)]["type"] == "v":
-            userValue = [float(i) for i in userValue.split(" ")]
-        elif send_head[keys.index(userKey)]["type"] == "m":
-            userValue = [[float(j) for j in i.split(" ")] for i in userValue.split(";")]
-        elif send_head[keys.index(userKey)]["type"] == "B":
-            userValue = int(userValue)
-        else:
-            print("Error: unknown type")
-            return userInputTest(send_head,db)
-    except Exception as e:
-        print("input incorrect")
-        return userInputTest(send_head,db)
-    
-    
-    print("returning : " + str({userKey:userValue}))
-    return {userKey:userValue}
-    # commandKey = "user_event"
-    # commandCode = 0
-    
-    # if userInput == "StartStateEstimate":
-    #     commandCode = 1
-    # elif userInput == "StopStateEstimate":
-    #     commandCode = 2
-    # elif userInput == "StartStream":
-    #     commandCode = 3
-    # elif userInput == "StopStream":
-    #     commandCode = 4
-    # elif userInput == "EnableStateEstimateStream":
-    #     commandCode = 5
-    # elif userInput == "DisableStateEstimateStream":
-    #     commandCode = 6
-    # elif userInput == "EnableSensorStream":
-    #     commandCode = 7
-    # elif userInput == "DisableSensorStream":
-    #     commandCode = 8
-    # else:
-    #     print("Error: unknown command")
-    #     return None
-    
-    # ret = {commandKey:commandCode}
-    
-
 '''
 _______________________________________________________
 _________________MAIN THREADS__________________________
 _______________________________________________________
 using threading to run multiple tasks at the same time, so the communication is not blocked by the user input or the dataBase writing
 '''
-received_data = []
 
-def receiveTask(s):
+def receive_task(bl_connection):
     global received_data
+    new_data = None
+    if fake_transmission:
+        return
+    
+    try:
+        new_data = receive(bl_connection)
+    except socket.timeout:
+        return #no data available
+    except Exception as e:
+        print("Error durring receive the data :")
+        print(e)
+    if receive_head is None:
+        return
+    if new_data is not None:
+        received_data.append(new_data)
+
+def receive_async_task(bl_connection):
     while True:
-        new_data = None
-        try:
-            new_data = receive(s)
-        except Exception as e:
-            print("Error: can't receive the data")
-            print(e)
-        if receive_head is None:
-            continue
-        if new_data is not None:
-            received_data.append(new_data)
-        #to let the other threads run
-        time.sleep(0.005)
-                    
-def saveTask(file):
+        receive_task(bl_connection)
+        time.sleep(0.001)     
+                   
+def save_task(file):
     global received_data
-    while True:
-        writeInDB(received_data, file)
-        received_data = []
-        time.sleep(0.005)
+    writeInDB(received_data, file)
+    received_data = []
 
-data_to_send = []
-def sendTask(s,db):
+last_time_send = time.time()
+def send_task(bl_connection):
     global data_to_send
-    while inited == False or send_head is None:
-        time.sleep(0.1)
-    time.sleep(1) #to be sure all is stable
-    while True:
-        if len(data_to_send) > 0:
-            send(s, data_to_send, send_head)
-        #to let the other threads run
-        time.sleep(0.05)
-
-def userInputTask(db):
-    global data_to_send
-    while True:
-        #data = userInput(send_head,db)
-        new_data_to_send = userInputTest(send_head,db)
-        if new_data_to_send is not None:
-            data_to_send.append(new_data_to_send)
-        #to let the other threads run
-        time.sleep(0.01)
+    if fake_transmission:
+        data_to_send.pop(0)
+        return
+    if inited == False or send_head is None:
+        return
+    if len(data_to_send) > 0:
+        send(bl_connection, data_to_send, send_head)
 
 
 '''
@@ -516,17 +409,23 @@ _______________________________________________________
 _____________________MAIN PROG_________________________
 _______________________________________________________
 '''
-inited = False
-def main():
-    connection = connect('24:6F:28:7B:DB:22')
-    if connection == None:
-        exit()
+def init_transmission(address = default_bl_address):
+    if fake_transmission:
+        return
+    connect(address)
+    if use_async_receive:
+        threading.Thread(target=receive_async_task, args=(bl_connection,)).start()
+    time.sleep(0.5)
+    
+def run_transmission():
+    if bl_connection == None:
+        return
+    if not use_async_receive:
+        receive_task(bl_connection)
+        
+    send_task(bl_connection)
+    
 
-    telemetry_db, userCommand_db = open_dbs()
-    threading.Thread(target=receiveTask, args=(connection,)).start()
-    threading.Thread(target=sendTask, args=(connection,userCommand_db)).start()
-    # threading.Thread(target=saveTask, args=(telemetry_db,)).start()
-    # threading.Thread(target=userInputTask, args=(userCommand_db,)).start()
 
 # Exécutez le programme principal
 
@@ -545,15 +444,15 @@ enum UserEvent : uint8_t
     DisableSensorStream,
     StartGyroBiasEstimation,
     StopGyroBiasEstimation,
+    StartAttitudeControl,
+    StopAttitudeControl,
+    EMERGENCY_STOP
 };
 """
 if __name__ == "__main__":
-    main()
-    data_to_send.append({"user_event": 7, "send_stream_delay": 50})
-    time.sleep(3)
-    data_to_send.append({"user_event": 3})
+    init_transmission('FC:F5:C4:27:09:16')
     
+    data_to_send = [{"user_event": 3, "send_stream_delay": 500},
+                    {"user_event": 7}]
     while True:
-        if len(received_data) > 0:
-            print(received_data)
-            received_data = []
+        run_transmission()

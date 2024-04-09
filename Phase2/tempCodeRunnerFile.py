@@ -1,1 +1,1 @@
-run
+thrust_command

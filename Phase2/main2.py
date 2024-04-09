@@ -10,7 +10,7 @@ import sys
 import gamecontroller
 import FakeDrone
 
-useFakeDrone = True
+useFakeDrone = False
 
 quad = FakeDrone.FakeQuad()
                
@@ -44,7 +44,7 @@ def setup():
 
 
     
-running_calib = not useFakeDrone
+running_calib = False# not useFakeDrone
 
 def draw():
     while not bluetoothTransmission.inited and not useFakeDrone:
@@ -57,15 +57,15 @@ def draw():
     # print("gyr_bias, acc_bias, gyr_ortho, acc_ortho")
     # print("\n\n\n\n")
     gyr_bias_bar = progressbar.ProgressBar(maxval=100, line_offset= 1)
-    # acc_bias_bar = progressbar.ProgressBar(maxval=100, line_offset= 2)
-    # gyr_ortho_bar = progressbar.ProgressBar(maxval=100, line_offset= 3)
-    # acc_ortho_bar = progressbar.ProgressBar(maxval=100, line_offset= 4)
+    acc_bias_bar = progressbar.ProgressBar(maxval=100, line_offset= 2)
+    gyr_ortho_bar = progressbar.ProgressBar(maxval=100, line_offset= 3)
+    acc_ortho_bar = progressbar.ProgressBar(maxval=100, line_offset= 4)
     # Create a file descriptor for regular printing as well
     # print_fd = progressbar.LineOffsetStreamWrapper(lines=0, stream=sys.stdout)
     # assert print_fd
 
     
-    while True:
+    while running_calib:
     #     clock.tick(FPS)
     #     gamecontroller.run()
     #     draw_attitude()
@@ -73,10 +73,9 @@ def draw():
     #     pygame.display.flip()
         
         gyr_bias_bar.update(min(100,int(100*calibration.imu.gyr_bias_std_tol/calibration.imu.gyr_bias_cov_indicator())))
-        # acc_bias_bar.update(min(100,int(100*calibration.imu.acc_bias_std_tol/calibration.imu.acc_bias_cov_indicator())))
-        # gyr_ortho_bar.update(min(100,int(100*calibration.imu.gyr_ortho_std_tol/calibration.imu.gyr_ortho_cov_indicator())))
-        # acc_ortho_bar.update(min(100,int(100*calibration.imu.acc_ortho_std_tol/calibration.imu.acc_ortho_cov_indicator())))
-
+        acc_bias_bar.update(min(100,int(100*calibration.imu.acc_bias_std_tol/calibration.imu.acc_bias_cov_indicator())))
+        gyr_ortho_bar.update(min(100,int(100*calibration.imu.gyr_ortho_std_tol/calibration.imu.gyr_ortho_cov_indicator())))
+        acc_ortho_bar.update(min(100,int(100*calibration.imu.acc_ortho_std_tol/calibration.imu.acc_ortho_cov_indicator())))
         # for event in pygame.event.get():
         #     if event.type == pygame.QUIT:
         #         pygame.quit()
@@ -84,23 +83,44 @@ def draw():
  
         
     
-    # gyr_bias_bar.finish()
-    # acc_bias_bar.finish()
-    # gyr_ortho_bar.finish()
-    # acc_ortho_bar.finish()
-    # cv2.destroyAllWindows()
+    gyr_bias_bar.finish()
+    acc_bias_bar.finish()
+    gyr_ortho_bar.finish()
+    acc_ortho_bar.finish()
+    print("gyr_bias, acc_bias, gyr_ortho, acc_ortho")
+    print(calibration.imu.gyr_bias_co.tolist(), calibration.imu.acc_bias_co.tolist(), calibration.imu.gyr_ortho_co.reshape(9).tolist(), calibration.imu.acc_ortho_co.reshape(9).tolist())
 
 
 def main():
+
     global received_orientation, running_calib, received_position
+    if not running_calib:
+    #    print("gyr_bias, acc_bias, gyr_ortho, acc_ortho")
+
+        bluetoothTransmission.data_to_send.append({
+            "gyr_bias_co":[-0.00764382870598456, -0.002906589515953307, -0.008359488215692632],
+            "acc_bias_co" :[-0.5381701629683476, -0.16040564811189145, -0.7443503860074567],
+            "gyr_ortho_co": [0.9771628295377841, -0.05299494120744518, -0.14232190400465064,
+                            0.006196144105722445, 1.0019661037095184, -0.013380961482694914,
+                            0.13818732367729306, -0.008985933421890196, 0.9884554847530128],
+            "acc_ortho_co": [0.9575774950927878, -0.009070080431738493, -0.13996072437652746,
+                            -0.004974358038731178, 1.0127180430455083, -0.03654834981032832,
+                            0.13328585931628698, 0.02380419054852441, 0.964911122794868],
+            "user_event": 1,
+            "send_stream_delay": 50
+        })
+        bluetoothTransmission.data_to_send.append({"user_event": 11})
+    time.sleep(3)
+
     last_time = time.time()
     setup()
     firstEfkIt = True
     while not bluetoothTransmission.inited and not useFakeDrone:
         cv2.waitKey(1)
 
-
-    bluetoothTransmission.data_to_send.append({"send_stream_delay": 10, "user_event": 3})
+    if not running_calib:
+        bluetoothTransmission.data_to_send.append({"send_stream_delay": 10, "user_event": 3})
+    
     while(True):
         new_kalmanIt = False
         to_send = {}
@@ -124,18 +144,21 @@ def main():
                             calibration.predict()
                             calibration.update()
                             new_kalmanIt = True
+                            gamecontroller.display_attitude = calibration.criticalState.orientation.elements.tolist()
+
                     if calibration.imu.calibrated() and running_calib:
                         to_send["gyr_bias_co"] = calibration.imu.gyr_bias_co.tolist()
                         to_send["acc_bias_co"] = calibration.imu.acc_bias_co.tolist()
                         to_send["gyr_ortho_co"] = calibration.imu.gyr_ortho_co.reshape(9).tolist()
                         to_send["acc_ortho_co"] = calibration.imu.acc_ortho_co.reshape(9).tolist()
-                        to_send["user_event"] = 11
+                        to_send["user_event"] = 11 #StartAttitudeControl
                         to_send["send_stream_delay"] = 50
+                        to_send["orientation"] = calibration.criticalState.orientation.elements.tolist()
                         running_calib = False
 
-
-            if new_kalmanIt:
-                to_send["orientation"] = calibration.criticalState.orientation.elements.tolist()
+                
+                # gamecontroller.display_position = calibration.criticalState.position.elements.tolist()
+            #     to_send["orientation"] = calibration.criticalState.orientation.elements.tolist()
                 # print("orientation : " + str(to_send["orientation"]))
         else:
             dt = time.time()-last_time
@@ -158,16 +181,17 @@ def main():
             received["w4"] = quad.engines[3].u
             received["angular_velocity_command"] = quad.angular_vel_command.tolist()
             bluetoothTransmission.received_data.append(received)
-            if not running_calib:
-                to_send["rpy"] = [gamecontroller.x*0.5,gamecontroller.y*0.5,0]
-                to_send["angular_velocity_command"] = [0,0,gamecontroller.z]
-                to_send["thrust"] = gamecontroller.thrust+gamecontroller.ThrustTilte
+        
+        if not running_calib:
+        #     # to_send["rpy"] = [gamecontroller.x*0.5,gamecontroller.y*0.5,0]
+            to_send["angular_velocity_command"] = [gamecontroller.x,gamecontroller.y,gamecontroller.z]
+            to_send["thrust_command"] = gamecontroller.thrust+gamecontroller.ThrustTilte
        
         if len(to_send.keys()) > 0:
-            bluetoothTransmission.data_to_send.append(to_send)
-            # print("sending : " + str(to_send))
+            bluetoothTransmission.data_to_send = [to_send]
+        #     print("sending : " + str(to_send))
         
-        print(bluetoothTransmission.received_data)
+        # print(bluetoothTransmission.received_data)
         # bluetoothTransmission.data_to_send = []
         bluetoothTransmission.received_data = [] 
 
@@ -179,7 +203,8 @@ if __name__ == "__main__":
         bluetoothTransmission.main()#init the bluetooth
     threading.Thread(target=main).start()
     threading.Thread(target=draw).start()
-    threading.Thread(target=gamecontroller.main).start()
+    gamecontroller.main()
+    # threading.Thread(target=gamecontroller.main).start()
     # threading.Thread(target=gamecontroller.main).start()
 
 '''
