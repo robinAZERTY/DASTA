@@ -168,7 +168,23 @@ class FakeQuad:
         
         
         return self.update([c1, c2, c3, c4], dt)
-        
+    
+    def forceAngularVel(self, wx, wy, wz, time_step, gravity=9.81):
+        #integrate the angular velocity to get the orientation
+        self.state.omega = np.array([wx, wy, wz])
+        self.state.orientation.integrate(self.state.omega,time_step)
+        #compute the linear acceleration
+        #rotate the acceleration to the world frame
+        # print(acc)
+        acc = np.array([0,0,-gravity])
+        #update the position
+        self.state.position *= 0
+        self.state.speeds *= 0
+        inerAcc = self.state.orientation.inverse.rotate(-np.array([0,0,gravity]))
+        self.imu.update(inerAcc, self.state.omega, time_step)
+        return self.state
+    
+    
     def run(self, roll, pitch, rz, throttle, dt):
         angle = np.linalg.norm([roll, pitch])
         if abs(angle) < 1e-6:

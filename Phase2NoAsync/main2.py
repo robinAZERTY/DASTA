@@ -9,7 +9,7 @@ import sys
 import gamecontroller
 import FakeDrone
 
-useFakeDrone = False
+useFakeDrone = True
 running_calib = True# not useFakeDrone
 quad = FakeDrone.FakeQuad()
 bluetoothTransmission.default_bl_address ='FC:F5:C4:27:09:16'
@@ -171,7 +171,10 @@ def run_fake_quad(time):
     if dt < 0.01:
         return
     last_time_run_fake_quad = time
-    quad.run(-gamecontroller.x*0.5,-gamecontroller.y*0.5,-gamecontroller.z,gamecontroller.thrust+gamecontroller.ThrustTilte,dt)
+    if running_calib:
+        quad.forceAngularVel(-gamecontroller.x,-gamecontroller.y,-gamecontroller.z,dt)
+    else:
+        quad.run(-gamecontroller.x*0.5,-gamecontroller.y*0.5,-gamecontroller.z,gamecontroller.thrust+gamecontroller.ThrustTilte,dt)
     gamecontroller.display_attitude = quad.state.orientation.elements.tolist()
     gamecontroller.display_position = quad.state.position.tolist()
     received={}
@@ -185,7 +188,7 @@ def run_fake_quad(time):
     received["w3"] = quad.engines[2].u
     received["w4"] = quad.engines[3].u
     received["angular_velocity_command"] = quad.angular_vel_command.tolist()
-    bluetoothTransmission.received_data.append(received)
+    bluetoothTransmission.received_data.append([received])
 
 last_time_pack_command = time.time()
 def pack_command():
