@@ -32,8 +32,8 @@ void closed_loop(const float now)
 
 
 void receive()
-{
-    if(dasta.communication.receive())
+{   
+   if(dasta.communication.receive()==1)
       dasta.runDecisionOnUserEvent();
   
   if (!dasta.communication.SerialBT.connected(100)) // safety feature
@@ -71,8 +71,9 @@ void print(const float now)
   if (now - last_time_print > PRINT_DT_s)
   {
     last_time_print = now;
-    Serial.print("gyro = " + vec2str(dasta.sensors.gyro));
-    Serial.print("\tacc = " + vec2str(dasta.sensors.acc));
+    Serial.print("thrust = " + String(dasta.thrust) + "\t");
+    Serial.print("gyro_raw = " + vec2str(dasta.sensors.gyro_raw));
+    Serial.print("\tacc_raw = " + vec2str(dasta.sensors.acc_raw));
     Serial.print("\th_val[0] =" + vec2str(dasta.estimator.ekf.h_val[0]));
     Serial.println("\testimator.running = " + String(dasta.estimator.running));
   }

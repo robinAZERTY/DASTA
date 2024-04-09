@@ -11,9 +11,14 @@ SensorPreProcessing::SensorPreProcessing()
     acc_bias_co.alloc(3);
     gyro_bias_co.alloc(3);
 
+    acc_bias_co.fill(0.0);
+    gyro_bias_co.fill(0.0);
 
     acc_scale_co.alloc(3, 3);
     gyro_scale_co.alloc(3, 3);
+
+    acc_scale_co.set_eye();
+    gyro_scale_co.set_eye();
 
     tmp.alloc(3);
 }

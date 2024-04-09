@@ -200,7 +200,7 @@ int Communication::receive()
 {
     if (!receive_stream_register_already_received)
     {
-        if (SerialBT.available() <= sizeof(receive_stream._register))
+        if (SerialBT.available() <= sizeof(receive_stream._register) + receive_stream.end_line.length())
             return 0;
 
         // read the stream_register
@@ -227,7 +227,7 @@ int Communication::receive()
                 return -3; // error while reading the data
 
     // read the end line
-    for (uint8_t i = 0; i < receive_stream_expected_length; i++)
+    for (uint8_t i = 0; i < receive_stream.end_line.length(); i++)
         if (SerialBT.read() != receive_stream.end_line[i])
             return -4; // error while reading the end line
 
