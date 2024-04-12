@@ -9,7 +9,7 @@ void Dasta::configCommunication()
     BL_stream::types.DOUBLE = 'd';
     BL_stream::types.VECTOR = 'v';
     BL_stream::types.MATRIX = 'm';
-    BL_stream::types.UNSIGNED_CHAR = 'B';
+    BL_stream::types.UNSIGNED_CHAR =   'B';
 
     communication.send_stream.name = "send_stream:";
     communication.receive_stream.name = "receive_stream:";
@@ -26,7 +26,9 @@ void Dasta::configCommunication()
     communication.send_stream.include("m3PWM", (uint8_t *)&actuators.motor3.read(), BL_stream::types.FLOAT, sizeof(actuators.motor3.read()),true);
     communication.send_stream.include("m4PWM", (uint8_t *)&actuators.motor4.read(), BL_stream::types.FLOAT, sizeof(actuators.motor4.read()),true);
     communication.send_stream.include("orientation", estimator.orientation,true);
-
+    communication.send_stream.include("battery_voltages", sensors.LiPo.voltages);
+    communication.receive_stream.include("internal_event", (uint8_t *)&decisionnal_unit.internal_event, BL_stream::types.UNSIGNED_CHAR, sizeof(decisionnal_unit.internal_event));
+ 
     communication.receive_stream.include("angular_velocity_command", communication.angular_velocity_command);
     communication.receive_stream.include("thrust_command", (uint8_t *)&thrust, BL_stream::types.FLOAT, sizeof(thrust));
     communication.receive_stream.include("user_event", (uint8_t *)&decisionnal_unit.user_event, BL_stream::types.UNSIGNED_CHAR, sizeof(decisionnal_unit.user_event));

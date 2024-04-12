@@ -1,8 +1,8 @@
 #include "Dasta.hpp"
 Dasta dasta;
 #define KALMAN_DT_s 0.01
-#define CLOSED_LOOP_DT_s 0.05
-#define PRINT_DT_s 0.5
+#define CLOSED_LOOP_DT_s 0.01
+#define PRINT_DT_s 0.2
 
 float now = 0;
 
@@ -26,6 +26,8 @@ void closed_loop(const float now)
   if (now - last_time_closed_loop > CLOSED_LOOP_DT_s)
   {
     last_time_closed_loop = now;
+    // cd(dasta.angular_velocity_command,dasta.communication.angular_velocity_command);
+    // dasta.run_angular_velocity_control(now);
     dasta.run_attitude_control(now);
   }
 }
@@ -50,7 +52,22 @@ void send(const float now)
   if (now - last_time_send > dasta.communication.send_stream.delay/1000.0)
   {
     last_time_send = now;
+    bool new_lipo_track = dasta.sensors.LiPo.run(now);
+    if (new_lipo_track)
+      dasta.communication.send_stream.enable("battery_voltages");
+    if (dasta.decisionnal_unit.internal_event)
+          dasta.communication.send_stream.enable("internal_event");
+
     dasta.communication.send();
+
+    if (new_lipo_track)
+      dasta.communication.send_stream.disable("battery_voltages");
+    if (dasta.decisionnal_unit.internal_event)
+      {
+        dasta.decisionnal_unit.internal_event = 0;
+        dasta.communication.send_stream.enable("internal_event");
+      }
+
   }
 }
 
@@ -71,11 +88,19 @@ void print(const float now)
   if (now - last_time_print > PRINT_DT_s)
   {
     last_time_print = now;
-    Serial.print("thrust = " + String(dasta.thrust) + "\t");
-    Serial.print("gyro_raw = " + vec2str(dasta.sensors.gyro_raw));
-    Serial.print("\tacc_raw = " + vec2str(dasta.sensors.acc_raw));
-    Serial.print("\th_val[0] =" + vec2str(dasta.estimator.ekf.h_val[0]));
-    Serial.println("\testimator.running = " + String(dasta.estimator.running));
+    // Serial.print("battery :" + vec2str(dasta.sensors.LiPo.voltages) + " | " + vec2str(dasta.sensors.LiPo.charges));
+    // Serial.print("thrust = " + String(dasta.thrust) + "\t");
+    // Serial.print("gyro_raw = " + vec2str(dasta.sensors.gyro_raw));
+    // Serial.print("\tacc_raw = " + vec2str(dasta.sensors.acc_raw));
+    // Serial.print("\th_val[0] =" + vec2str(dasta.estimator.ekf.h_val[0]));
+    // Serial.print("\testimator.running = " + String(dasta.estimator.running));
+    // Serial.print("\tattitude_control_running = " + String(dasta.attitude_control_running));
+    // Serial.print("\tangular_velocity_control_running = " + String(dasta.angular_velocity_control_running));
+    Serial.print("acc = " + vec2str(dasta.sensors.acc,2));
+    Serial.print("\tq = " + vec2str(dasta.estimator.orientation,2));
+    Serial.print("\trpy = " + vec2str(dasta.estimator.rpy,2));
+    Serial.print("\tgyro = " + vec2str(dasta.sensors.gyro));
+    Serial.println("\trot_vel_command = " + vec2str(dasta.angular_velocity_command,2));
   }
 }
 
@@ -84,6 +109,11 @@ void setup()
 {
   Serial.begin(115200);
   dasta.init();
+  // pinMode(5, OUTPUT);
+  // pinMode(17, OUTPUT);
+  // digitalWrite(17, HIGH);
+  // digitalWrite(5, HIGH);
+
 }
 
 void loop()
@@ -94,4 +124,5 @@ void loop()
   receive();
   send(now);
   print(now);
+  delayMicroseconds(100);
 }

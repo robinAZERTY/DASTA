@@ -132,7 +132,7 @@ void Dasta::configureStateEstimate()
         estimator.ekf.setTransitionFunction(f);
         // estimator.ekf.setJacobianFunction_Fx(Fx);
         // estimator.ekf.setJacobianFunction_Fu(Fu);
-        estimator.ekf.setMeasurementFunction(h, Z_DIM, 0);
+        estimator.ekf.setMeasurementFunction(h, Z_DIM);
 
         estimator.ekf.c.alloc(C_DIM);
         estimator.ekf.c.data[0] = 0.01;

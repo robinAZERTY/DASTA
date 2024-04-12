@@ -31,6 +31,7 @@ public:
     Pid(float kp, float ki, float kd, float maxIntegral = 1e6, float timeConstDerFilter = 0, float min = -1e9, float max = 1e9);   // Constructor with parameters
     float compute(float error, float time = micros() / 1e6);   // Compute the control signal
     void unset() { lastTime = -1; }   // Reset the last time value
+    void reset_integrale(){integral = 0; lastDerivative = 0; lastError = 0; lastTime = micros() / 1e6;}; // Reset the integral term
 };
 
 #endif // PID_HPP

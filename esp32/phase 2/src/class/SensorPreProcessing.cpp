@@ -53,6 +53,8 @@ void SensorPreProcessing::init()
         while (1)
             ;
     }
+
+    LiPo.init();
 }
 
 void SensorPreProcessing::readSensors()

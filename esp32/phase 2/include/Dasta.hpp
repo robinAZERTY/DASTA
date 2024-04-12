@@ -21,6 +21,7 @@ class Dasta
     void configActuators();
     void configureStateEstimate();
     Pid pidRx, pidRy, pidRz;
+    Pid pidRoll, pidPitch, pidYaw;
     // Vector Wu = Vector(3); // angular velocity command
     float thrust = 0.0;
     bool inited = false;
@@ -30,9 +31,11 @@ public:
     ~Dasta(){};
     void init();
     const bool getInited(){return inited;}
-    void run_anguler_velocity_control(float time=millis()/1000.0);
+    void run_angular_velocity_control(float time=millis()/1000.0);
     void run_attitude_control(float time=millis()/1000.0);
     bool attitude_control_running = false;
+    bool angular_velocity_control_running = false;
+    Vector angular_velocity_command = Vector(3);
     void runDecisionOnUserEvent();
     SensorPreProcessing sensors;
     Communication communication;

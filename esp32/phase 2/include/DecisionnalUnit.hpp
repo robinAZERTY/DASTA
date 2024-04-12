@@ -7,7 +7,7 @@ class DecisionnalUnit
 {
 
 public:
-    uint8_t user_event;
+    uint8_t user_event, internal_event;
     DecisionnalUnit(/* args */);
     ~DecisionnalUnit();
 };

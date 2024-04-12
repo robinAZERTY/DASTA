@@ -13,6 +13,7 @@ public:
     // Led led1, led2;
     ESC motor1, motor2, motor3, motor4;
     void stopMotors();
+    void engageMotors();
 
 };
 

@@ -2,8 +2,10 @@
 #define SENSOR_PREPROCESSING_HPP
 
 #include <MPU6500.h>
+#include "batteryTracker.hpp"
 #include "matrix.hpp"
 // #include "Cam.hpp"
+
 
 class SensorPreProcessing
 {
@@ -17,6 +19,7 @@ class SensorPreProcessing
     void compensateGyroBias();
 
     void startGyroBiasEstimation();
+    BatteryTracker3s LiPo;
     MPU6500 imu = MPU6500(Wire, 0x68);
     // Cam cam1, cam2;
     Vector acc, gyro;

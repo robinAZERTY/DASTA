@@ -15,7 +15,19 @@ enum UserEvent : uint8_t
     StopGyroBiasEstimation,
     StartAttitudeControl,
     StopAttitudeControl,
-    EMERGENCY_STOP
+    EMERGENCY_STOP,
+    engageMotors,
+    disengageMotors
+};
+
+enum EmbeddedEvent : uint8_t
+{
+    None2=0,
+    WaitingForBatteryPower,
+    WaitingForCalibration,
+    WaitingForKalmanConvergence,
+    ReadyToFly,
+    LowBattery,
 };
 
 
@@ -38,6 +50,16 @@ void Dasta::runDecisionOnUserEvent()
     case UserEvent::StopStream:
         communication.running_send_stream = false;
         break;
+    case UserEvent::StartAttitudeControl:
+        
+        attitude_control_running = true;
+        angular_velocity_control_running = true;
+        break;
+    case UserEvent::StopAttitudeControl:
+        attitude_control_running = false;
+        angular_velocity_control_running = false;
+        break;
+
     // case UserEvent::EnableStateEstimateStream:
     //     communication.send_stream.enable("position");
     //     communication.send_stream.enable("velocity");
@@ -64,17 +86,30 @@ void Dasta::runDecisionOnUserEvent()
     case UserEvent::StopGyroBiasEstimation:
         sensors.gyro_bias_estimation_running = false;
         break;
-    case UserEvent::StartAttitudeControl:
-        attitude_control_running = true;
-        estimator.running = true;
-        break;
-    case UserEvent::StopAttitudeControl:
-        attitude_control_running = false;
-        break;
     case UserEvent::EMERGENCY_STOP:
         actuators.stopMotors();
         ESP.restart();
         break;
+    case UserEvent::engageMotors:
+        sensors.LiPo.read();
+        if (sensors.LiPo.voltages.data[3]<6)
+            decisionnal_unit.internal_event = EmbeddedEvent::WaitingForBatteryPower;
+        else
+        {
+        actuators.engageMotors();
+        attitude_control_running = true;
+        angular_velocity_control_running = true;
+        pidRx.reset_integrale();
+        pidRy.reset_integrale();
+        pidRz.reset_integrale();
+        }
+        break;
+    case UserEvent::disengageMotors:
+        actuators.stopMotors();
+        attitude_control_running = false;
+        angular_velocity_control_running = false;
+        break;
+
     default:
         break;
     }

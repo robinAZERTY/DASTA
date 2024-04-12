@@ -15,3 +15,11 @@ void Actuators::stopMotors()
     motor3.disengage();
     motor4.disengage();
 }
+
+void Actuators::engageMotors()
+{
+    motor1.engage();
+    motor2.engage();
+    motor3.engage();
+    motor4.engage();
+}

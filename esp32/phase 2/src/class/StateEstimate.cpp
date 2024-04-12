@@ -32,7 +32,8 @@ void StateEstimate::run(const float time)
 void StateEstimate::initFromAccel(const Vector &accel)
 {
     // compute roll and pitch from accelerometer
-    rpy(2) = atan2(-accel.data[0], sqrt(accel.data[1] * accel.data[1] + accel.data[2] * accel.data[2]));
-    rpy(1) = atan2(accel.data[1], accel.data[2]);
+    rpy(0) = atan2(-accel.data[1], -accel.data[2]);
+    rpy(1) = -atan2(-accel.data[0], sqrt(accel.data[1] * accel.data[1] + accel.data[2] * accel.data[2]));
+    rpy(2) = 0;
     rpy2q(orientation, rpy);
 }

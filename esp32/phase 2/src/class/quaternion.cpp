@@ -1,8 +1,8 @@
 #include "Quaternion.hpp"
 
-Quaternion::Quaternion() : Vector()
+Quaternion::Quaternion() : Vector(4)
 {
-    this->size = 4;
+    // this->size = 4;
 }
 
 Quaternion::Quaternion(data_type w, data_type x, data_type y, data_type z) : Vector(4)
@@ -17,6 +17,15 @@ Quaternion::Quaternion(data_type *data) : Vector()
 {
     this->size = 4;
     this->data = data;
+}
+
+Quaternion::Quaternion(Vector &axis, data_type angle) : Vector(4)
+{
+    data_type sin_angle = sin(angle / 2);
+    data[0] = cos(angle / 2);
+    data[1] = axis.data[0] * sin_angle;
+    data[2] = axis.data[1] * sin_angle;
+    data[3] = axis.data[2] * sin_angle;
 }
 
 void Quaternion::conjugate()
@@ -59,7 +68,7 @@ void Quaternion::normalize()
 //     res.data[3] = data[3] / sin_angle;
 // }
 
-void mul(Quaternion &res, const Quaternion &q1, const Quaternion &q2)
+void mul(Quaternion &res, Quaternion &q1, Quaternion &q2)
 {
     res.data[0] = q1.data[0] * q2.data[0] - q1.data[1] * q2.data[1] - q1.data[2] * q2.data[2] - q1.data[3] * q2.data[3];
     res.data[1] = q1.data[0] * q2.data[1] + q1.data[1] * q2.data[0] + q1.data[2] * q2.data[3] - q1.data[3] * q2.data[2];
@@ -118,9 +127,27 @@ void pow(Quaternion &res, const Quaternion &q, data_type n)
 {
     data_type angle = acos(q.data[0]);
     data_type sin_angle = sin(angle);
+    if (abs(sin_angle) < 1e-6)
+    {
+        res.data[0] = q.data[0];
+        res.data[1] = q.data[1];
+        res.data[2] = q.data[2];
+        res.data[3] = q.data[3];
+        return;
+    }
     data_type angle_n = angle * n;
     res.data[0] = cos(angle_n);
     res.data[1] = q.data[1] * sin(angle_n) / sin_angle;
     res.data[2] = q.data[2] * sin(angle_n) / sin_angle;
     res.data[3] = q.data[3] * sin(angle_n) / sin_angle;
+}
+
+void slerp(Quaternion &res, Quaternion &start, Quaternion &end, data_type t)
+{
+    Quaternion tmp;
+    start.conjugate();
+    mul(tmp, start, end);
+    start.conjugate();
+    pow(tmp, tmp, t);
+    mul(res, start, tmp);
 }

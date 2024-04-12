@@ -61,6 +61,8 @@ public:
      */
     const bool engaged() const { return state == ENGAGED; };
 
+    void engage() { state = ENGAGED; };
+    
 private:
     /*
      * set the speed of the ESC
