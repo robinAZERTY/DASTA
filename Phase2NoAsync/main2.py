@@ -100,8 +100,10 @@ gyr_ortho_bar = None
 acc_ortho_bar = None
 
 display_3d = True
+battery = 0
+battery_voltage = 0
 def run3d():
-    global display_3d
+    global display_3d, battery
     if not display_3d:
         return
     gamecontroller.clock.tick(gamecontroller.FPS)
@@ -119,6 +121,14 @@ def run3d():
         if useFakeDrone:
             gamecontroller.draw_box(quad.state.orientation.elements.tolist(),gamecontroller.display_position,(0,255,0))
         gamecontroller.draw_box()
+        #add battery level
+        gamecontroller.pygame.draw.rect(gamecontroller.screen, gamecontroller.pygame.Color("black"), gamecontroller.pygame.Rect(0, 0, 100, 20))
+        gamecontroller.pygame.draw.rect(gamecontroller.screen, gamecontroller.pygame.Color("red"), gamecontroller.pygame.Rect(0, 0, battery, 20))
+        # display battery voltage with text
+        font = gamecontroller.pygame.font.Font(None, 20)
+        text = font.render(str(round(battery_voltage,1)), True, gamecontroller.pygame.Color("white"))
+        gamecontroller.screen.blit(text, (110, 5))
+        
         gamecontroller.pygame.display.flip()
 
 
@@ -157,12 +167,24 @@ def draw_calib_indicator():
 firstEfkIt = True
 new_kalmanIt = False
 
+'''
+enum EmbeddedEvent : uint8_t
+{
+    None2=0,
+    WaitingForBatteryPower,
+    WaitingForCalibration,
+    WaitingForKalmanConvergence,
+    ReadyToFly,
+    LowBattery,
+};
+'''
 def on_received_data():
-    global running_calib, firstEfkIt, new_kalmanIt
+    global running_calib, firstEfkIt, new_kalmanIt, battery, battery_voltage
     for buffer in bluetoothTransmission.received_data:
         for data in buffer:
             if data is None:
                 continue
+            # print("received data: " + str(data))
             to_send = {}
             if "orientation" in data:
                 gamecontroller.display_attitude = data["orientation"]
@@ -179,6 +201,22 @@ def on_received_data():
                     calibration.update()
                     new_kalmanIt = True
                     gamecontroller.display_attitude = calibration.criticalState.orientation.elements.tolist()
+            if "internal_event" in data:
+                if data["internal_event"] == 1:
+                    print("Waiting for battery power")
+                elif data["internal_event"] == 2:
+                    print("Waiting for calibration")
+                elif data["internal_event"] == 3:
+                    print("Waiting for kalman convergence")
+                elif data["internal_event"] == 4:
+                    print("Ready to fly")
+                elif data["internal_event"] == 5:
+                    print("Low battery")
+            if "battery_lvl" in data:
+                battery = data["battery_lvl"][-1]*100
+            if "battery_voltages" in data:
+                battery_voltage = data["battery_voltages"][-1]
+                
  
 
             if calibration.imu.calibrated() and running_calib:
@@ -227,8 +265,7 @@ def pack_command():
     last_time_pack_command = t
     
     # bluetoothTransmission.data_to_send.append({"angular_velocity_command": [gamecontroller.x,gamecontroller.y,gamecontroller.z], "thrust_command": gamecontroller.thrust+gamecontroller.ThrustTilte})
-    bluetoothTransmission.data_to_send.append({"rpy_command": [gamecontroller.x*0.2,gamecontroller.y*0.2,0], "angular_velocity_command": [0,0,gamecontroller.z],"thrust_command": gamecontroller.thrust+gamecontroller.ThrustTilte})
-    print(gamecontroller.thrust+gamecontroller.ThrustTilte)
+    bluetoothTransmission.data_to_send.append({"rpy_command": [gamecontroller.x*0.1,gamecontroller.y*0.1,0], "angular_velocity_command": [0,0,gamecontroller.z],"thrust_command": gamecontroller.thrust+gamecontroller.ThrustTilte})
     if (gamecontroller.engage):
         bluetoothTransmission.data_to_send.append({"user_event" : 14})
         gamecontroller.engage = False
