@@ -9,11 +9,12 @@ import sys
 import gamecontroller
 import FakeDrone
 
-useFakeDrone = True
-running_calib = True# not useFakeDrone
+useFakeDrone = False
+running_calib = False# not useFakeDrone
 quad = FakeDrone.FakeQuad()
-bluetoothTransmission.default_bl_address ='FC:F5:C4:27:09:16'
-               
+bluetoothTransmission.default_bl_address ='24:6F:28:7B:DB:22'
+bluetoothTransmission.print_reception = False
+bluetoothTransmission.print_transmission = False           
 
 received_orientation = [1,0,0,0]
 received_position = [0,0,0]
@@ -58,28 +59,31 @@ def setup():
     
     calibration.imu.gyr_bias_std_tol = 0.0003
     calibration.imu.acc_bias_std_tol = 0.005
-    calibration.imu.gyr_ortho_std_tol = 0.004
-    calibration.imu.acc_ortho_std_tol = 0.004
-        
+    calibration.imu.gyr_ortho_std_tol = 0.005
+    calibration.imu.acc_ortho_std_tol = 0.005
+  
+    # calibration.imu.gyr_bias_std_tol *= 2
+    # calibration.imu.acc_bias_std_tol *= 2
+    # calibration.imu.gyr_ortho_std_tol *= 2
+    # calibration.imu.acc_ortho_std_tol *= 2
+
+      
     calibration.init()
     bluetoothTransmission.fake_transmission = useFakeDrone
-    bluetoothTransmission.init_transmission('FC:F5:C4:27:09:16')
+    bluetoothTransmission.init_transmission('08:D1:F9:CE:C3:76')
     
     if not running_calib:
         bluetoothTransmission.data_to_send.append({"user_event": 3}) #StartStream
-        bluetoothTransmission.data_to_send.append(
-            {
-            "gyr_bias_co":[-0.00764382870598456, -0.002906589515953307, -0.008359488215692632],
-            "acc_bias_co" :[-0.5381701629683476, -0.16040564811189145, -0.7443503860074567],
-            "gyr_ortho_co": [0.9771628295377841, -0.05299494120744518, -0.14232190400465064,
-                            0.006196144105722445, 1.0019661037095184, -0.013380961482694914,
-                            0.13818732367729306, -0.008985933421890196, 0.9884554847530128],
-            "acc_ortho_co": [0.9575774950927878, -0.009070080431738493, -0.13996072437652746,
-                            -0.004974358038731178, 1.0127180430455083, -0.03654834981032832,
-                            0.13328585931628698, 0.02380419054852441, 0.964911122794868],
-            "user_event": 1,#StartStateEstimate
-            "send_stream_delay": 50
-            })
+        bluetoothTransmission.data_to_send.append({
+            'gyro_bias_co': [-0.11896539564419907, 0.012694509160569165, -0.015780466117347472],
+            'acc_bias_co': [-0.0560912679013639, 0.1483948803669653, -0.5406994399014228],
+            'gyro_scale_co': [[1.0095270720940326, -0.006502963491368057, -0.0009163382881876442],
+                              [0.011263640184387785, 1.001754653043537, 0.009827374124837161],
+                              [-0.006914491274247384, 0.007181100172026654, 0.998832585708012]],
+            'acc_scale_co': [[0.9921890274118018, -0.0083805195897565, 0.00795622439258923],
+                             [0.007551945246112519, 0.9987173123942706, 0.009975625312003923],
+                             [-0.0005677593159086044, -0.007056947631665735, 0.9910633866799974]],
+            'user_event': 1, 'send_stream_delay': 50})
         bluetoothTransmission.data_to_send.append({"user_event": 11}) #StartAttitudeControl
     else :
         bluetoothTransmission.data_to_send.append({"user_event": 3, "send_stream_delay": 20})
@@ -89,12 +93,36 @@ def setup():
 
 last_time_calib_indicator = time.time()
 calib_indicator_initialized = False
-running_calib_indicator = True
+running_calib_indicator = running_calib
 gyr_bias_bar = None
 acc_bias_bar = None
 gyr_ortho_bar = None
 acc_ortho_bar = None
 
+display_3d = True
+def run3d():
+    global display_3d
+    if not display_3d:
+        return
+    gamecontroller.clock.tick(gamecontroller.FPS)
+    for event in gamecontroller.pygame.event.get():
+        if event.type == gamecontroller.pygame.JOYDEVICEADDED:
+            joy = gamecontroller.pygame.joystick.Joystick(event.device_index)
+            gamecontroller.joysticks.append(joy)
+        #quit program
+        if event.type == gamecontroller.pygame.QUIT:
+            print("QUITTING")
+            display_3d = False
+            gamecontroller.pygame.quit()
+    if display_3d:
+        gamecontroller.screen.fill(gamecontroller.pygame.Color("midnightblue"))
+        if useFakeDrone:
+            gamecontroller.draw_box(quad.state.orientation.elements.tolist(),gamecontroller.display_position,(0,255,0))
+        gamecontroller.draw_box()
+        gamecontroller.pygame.display.flip()
+
+
+last_calibration = {}
 def draw_calib_indicator():
     global running_calib_indicator, calib_indicator_initialized, gyr_bias_bar, acc_bias_bar, gyr_ortho_bar, acc_ortho_bar, last_time_calib_indicator
     if not running_calib_indicator:
@@ -123,9 +151,9 @@ def draw_calib_indicator():
         acc_bias_bar.finish()
         gyr_ortho_bar.finish()
         acc_ortho_bar.finish()
-        print("gyr_bias, acc_bias, gyr_ortho, acc_ortho")
-        print(calibration.imu.gyr_bias_co.tolist(), calibration.imu.acc_bias_co.tolist(), calibration.imu.gyr_ortho_co.reshape(9).tolist(), calibration.imu.acc_ortho_co.reshape(9).tolist())
-
+        print("calibration done :")
+        print(last_calibration)
+    
 firstEfkIt = True
 new_kalmanIt = False
 
@@ -135,8 +163,10 @@ def on_received_data():
         for data in buffer:
             if data is None:
                 continue
+            to_send = {}
             if "orientation" in data:
                 gamecontroller.display_attitude = data["orientation"]
+                # print("received orientation: " + str(data["orientation"]))
             if "time" in data and "gyro_raw" in data and "acc_raw" in data:
                 calibration.imu.time = data["time"]/1000
                 calibration.imu.new_gyr_sample = np.array(data["gyro_raw"])
@@ -144,51 +174,49 @@ def on_received_data():
                 if firstEfkIt:
                     calibration.initAttitudeUsingAcc()
                     firstEfkIt = False
-                if running_calib:
+                elif running_calib:
                     calibration.predict()
                     calibration.update()
                     new_kalmanIt = True
                     gamecontroller.display_attitude = calibration.criticalState.orientation.elements.tolist()
+ 
 
             if calibration.imu.calibrated() and running_calib:
-                to_send = {}
-                to_send["gyr_bias_co"] = calibration.imu.gyr_bias_co.tolist()
+                global last_calibration
+                to_send["gyro_bias_co"] = calibration.imu.gyr_bias_co.tolist()
                 to_send["acc_bias_co"] = calibration.imu.acc_bias_co.tolist()
-                to_send["gyr_ortho_co"] = calibration.imu.gyr_ortho_co.reshape(9).tolist()
-                to_send["acc_ortho_co"] = calibration.imu.acc_ortho_co.reshape(9).tolist()
+                # to_send["gyro_scale_co"] = calibration.imu.gyr_ortho_co.reshape(9).tolist()
+                # to_send["acc_scale_co"] = calibration.imu.acc_ortho_co.reshape(9).tolist()
+                # to_send["gyro_scale_co"] should be a list of 3 list of 3 elements
+                to_send["gyro_scale_co"] = calibration.imu.gyr_ortho_co.reshape(3,3).tolist()
+                to_send["acc_scale_co"] = calibration.imu.acc_ortho_co.reshape(3,3).tolist()
                 to_send["user_event"] = 11 #StartAttitudeControl
                 to_send["send_stream_delay"] = 50
-                to_send["orientation"] = calibration.criticalState.orientation.elements.tolist()
+                last_calibration = to_send
                 running_calib = False
+                print("calibration done :" + str(to_send))
                 bluetoothTransmission.data_to_send.append(to_send)
-                
+                bluetoothTransmission.data_to_send.append({"user_event": 1}) #StartStateEstimate
+    # print("received data: " + str(bluetoothTransmission.received_data))  
     bluetoothTransmission.received_data = []
 
 last_time_run_fake_quad = time.time()
 def run_fake_quad(time):
+    quad.receive(bluetoothTransmission.data_to_send)
+    quad.send(bluetoothTransmission.received_data)
+
     global last_time_run_fake_quad
     dt = time-last_time_run_fake_quad
     if dt < 0.01:
         return
     last_time_run_fake_quad = time
     if running_calib:
-        quad.forceAngularVel(-gamecontroller.x,-gamecontroller.y,-gamecontroller.z,dt)
+        quad.force_angular_vel(-gamecontroller.x*2,-gamecontroller.y*2,-gamecontroller.z*2,dt)
     else:
-        quad.run(-gamecontroller.x*0.5,-gamecontroller.y*0.5,-gamecontroller.z,gamecontroller.thrust+gamecontroller.ThrustTilte,dt)
-    gamecontroller.display_attitude = quad.state.orientation.elements.tolist()
+        quad.run(-gamecontroller.x*0.1,-gamecontroller.y*0.1,-gamecontroller.z,gamecontroller.thrust+gamecontroller.ThrustTilte,dt)
+    # gamecontroller.display_attitude = quad.state.orientation.elements.tolist()
     gamecontroller.display_position = quad.state.position.tolist()
-    received={}
-    received["time"] = int(time*1000)
-    received["gyro_raw"] = quad.imu.gyr.tolist()
-    received["acc_raw"] = quad.imu.acc.tolist()
-    received["orientation"] = gamecontroller.display_attitude
-    received["position"] = gamecontroller.display_position
-    received["w1"] = quad.engines[0].u
-    received["w2"] = quad.engines[1].u
-    received["w3"] = quad.engines[2].u
-    received["w4"] = quad.engines[3].u
-    received["angular_velocity_command"] = quad.angular_vel_command.tolist()
-    bluetoothTransmission.received_data.append([received])
+
 
 last_time_pack_command = time.time()
 def pack_command():
@@ -198,17 +226,34 @@ def pack_command():
         return
     last_time_pack_command = t
     
-    bluetoothTransmission.data_to_send.append({"angular_velocity_command": [gamecontroller.x,gamecontroller.y,gamecontroller.z], "thrust_command": gamecontroller.thrust+gamecontroller.ThrustTilte})
+    # bluetoothTransmission.data_to_send.append({"angular_velocity_command": [gamecontroller.x,gamecontroller.y,gamecontroller.z], "thrust_command": gamecontroller.thrust+gamecontroller.ThrustTilte})
+    bluetoothTransmission.data_to_send.append({"rpy_command": [gamecontroller.x*0.2,gamecontroller.y*0.2,0], "angular_velocity_command": [0,0,gamecontroller.z],"thrust_command": gamecontroller.thrust+gamecontroller.ThrustTilte})
+    print(gamecontroller.thrust+gamecontroller.ThrustTilte)
+    if (gamecontroller.engage):
+        bluetoothTransmission.data_to_send.append({"user_event" : 14})
+        gamecontroller.engage = False
+    if (gamecontroller.disengage):
+        bluetoothTransmission.data_to_send.append({"user_event" : 15})
+        gamecontroller.disengage = False
+
+        
 
     
 if __name__ == "__main__":
     setup()
     while True:
-        bluetoothTransmission.run_transmission()
         if len(bluetoothTransmission.received_data) > 0:
             on_received_data()
-        gamecontroller.run()
+        # gamecontroller.run()
+        run3d()
+        gamecontroller.run_controller()
+        if gamecontroller.emergency_stop:
+            print("EMERGENCY STOP")
+            bluetoothTransmission.data_to_send.append({"user_event": 13})
+            gamecontroller.emergency_stop = False
         draw_calib_indicator()
         pack_command()
-        if useFakeDrone:
+        if not useFakeDrone:
+            bluetoothTransmission.run_transmission()
+        else:
             run_fake_quad(time.time())

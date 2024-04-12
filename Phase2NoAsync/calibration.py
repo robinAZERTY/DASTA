@@ -260,7 +260,7 @@ def initAttitudeUsingAcc():
         '''
         compute the initial orientation using the accelerometer
         '''
-        pitch = np.arctan2(-imu.new_acc_sample[0], np.sqrt(imu.new_acc_sample[1]**2 + imu.new_acc_sample[2]**2))
+        pitch = -np.arctan2(-imu.new_acc_sample[0], np.sqrt(imu.new_acc_sample[1]**2 + imu.new_acc_sample[2]**2))
         roll = np.arctan2(-imu.new_acc_sample[1], -imu.new_acc_sample[2])
         # print("pitch, roll =", pitch,roll)
         q0, qvec = angle2quat(0, pitch, roll, input_unit='rad')

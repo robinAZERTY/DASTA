@@ -141,6 +141,7 @@ def getTypeKey(var):
     
     
 def packOne_data(One_data, formatt):
+    print("packing : " + str(One_data) + " with format : " + str(formatt))
     packedData = None
     if formatt["type"] in STD_TYPE_KEY:
         packedData = struct.pack(formatt["type"], One_data)
