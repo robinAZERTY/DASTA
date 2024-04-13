@@ -57,9 +57,10 @@ void SensorPreProcessing::init()
     LiPo.init();
 }
 
-void SensorPreProcessing::readSensors()
+bool SensorPreProcessing::readSensors(const int64_t &now)
 {
-    imu.readSensor();
+    if(imu.readSensor(now)<0)
+        return false;
 
     acc.data[0] = imu.getAccelX_mss();
     acc.data[1] = imu.getAccelY_mss();
@@ -73,36 +74,10 @@ void SensorPreProcessing::readSensors()
     cd(gyro_raw, gyro);
 
     imu_compensated = false;
-    gyro_bias_compensated = false;
-
-    if (gyro_bias_estimation_running)
-    {
-        gyro_bias_estimation_count++;
-        add(tmp, gyro_bias_co, gyro);
-        mul(tmp, tmp, -1.0 / gyro_bias_estimation_count);
-        add(gyro_bias_co, gyro_bias_co, tmp);
-    }
+    return true;
 }
 
-void SensorPreProcessing::startGyroBiasEstimation()
-{
-    readSensors();
-    gyro_bias_estimation_count = 0;
-    gyro_bias_estimation_running = true;
-    cd(gyro_bias_co, gyro);
-    mul(gyro_bias_co, gyro_bias_co, -1.0);
-}
 
-void SensorPreProcessing::compensateGyroBias()
-{
-    if (gyro_bias_compensated)
-        return;
-
-    // compensate gyroscope
-    add(gyro, gyro, gyro_bias_co);
-
-    gyro_bias_compensated = true;
-}
 
 void SensorPreProcessing::compensateIMU()
 {
@@ -115,8 +90,7 @@ void SensorPreProcessing::compensateIMU()
     cd(acc, tmp);
 
     // compensate gyroscope
-    if (!gyro_bias_compensated)
-        add(gyro, gyro, gyro_bias_co);
+    add(gyro, gyro, gyro_bias_co);
 
     mul(tmp, gyro_scale_co, gyro);
     cd(gyro, tmp);

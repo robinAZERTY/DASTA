@@ -23,7 +23,7 @@
 #define INTERNAL_RES 0.02
 
 //voltage samples
-float BatteryTracker3s::charge_sample[4][2] = {{1.0,4.2},{0.5,3.8},{0.2,3.7},{0.0,3.0}};
+float BatteryTracker3s::charge_sample[4][2] = {{0.0,3.0},{0.2,3.7},{0.5,3.8},{1.0,4.2}};
 uint8_t BatteryTracker3s::sample_size = 4;
 
 void Dasta::configSensorPreProcessing()
@@ -68,4 +68,9 @@ void Dasta::configSensorPreProcessing()
     sensors.LiPo.pinCell3 = PIN_CELL_123;
     sensors.LiPo.powerPin = PIN_POWER;
     sensors.LiPo.internal_resistance = INTERNAL_RES;
+    sensors.LiPo.lpfc1.setTimeConstant(10);
+    sensors.LiPo.lpfc2.setTimeConstant(10);
+    sensors.LiPo.lpfc3.setTimeConstant(10);
+    sensors.LiPo.lpfc4.setTimeConstant(10);
+    
 }

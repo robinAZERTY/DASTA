@@ -1,43 +1,53 @@
 #include "Dasta.hpp"
+
 Dasta dasta;
-#define KALMAN_DT_s 0.01
-#define CLOSED_LOOP_DT_s 0.01
-#define PRINT_DT_s 0.2
+#define KALMAN_DT_ms 2
+#define CLOSED_LOOP_DT_ms 10
+// #define PRINT_DT_ms 50
 
-float now = 0;
 
-float last_time_kalman = 0;
-void kalman(const float now)
+
+int64_t last_time_kalman = 0, kalman_dt = 0, max_kalman_dt = 0;
+void kalman(const int64_t &now)
 {
-  if (now - last_time_kalman > KALMAN_DT_s)
+  if (now - last_time_kalman < KALMAN_DT_ms * 1000)
+    return;
+  if (dasta.sensors.readSensors(now))
   {
-    last_time_kalman = now;
-    dasta.sensors.readSensors();
     dasta.sensors.compensateIMU();
-    vector::cd(dasta.estimator.ekf.u, dasta.sensors.gyro);
-    vector::cd(dasta.estimator.ekf.z[0], dasta.sensors.acc);
-    dasta.estimator.run(now);
+    if (last_time_kalman != 0)
+    {
+      kalman_dt = now - last_time_kalman;
+      vector::cd(dasta.estimator.ekf.u, dasta.sensors.gyro);
+      vector::cd(dasta.estimator.ekf.z[0], dasta.sensors.acc);
+      dasta.estimator.run(kalman_dt/1000000.0);
+      max_kalman_dt = max(max_kalman_dt, kalman_dt);
+    }
+    last_time_kalman = now;
   }
 }
 
-float last_time_closed_loop = 0;
-void closed_loop(const float now)
+
+int64_t last_time_closed_loop = 0, closed_loop_dt = 0, max_closed_loop_dt = 0;
+void closed_loop(const int64_t &now)
 {
-  if (now - last_time_closed_loop > CLOSED_LOOP_DT_s)
+  if (now - last_time_closed_loop < CLOSED_LOOP_DT_ms * 1000)
+    return;
+  if (last_time_closed_loop != 0)
   {
-    last_time_closed_loop = now;
-    // cd(dasta.angular_velocity_command,dasta.communication.angular_velocity_command);
-    // dasta.run_angular_velocity_control(now);
-    dasta.run_attitude_control(now);
+    closed_loop_dt = now - last_time_closed_loop;
+    dasta.run_attitude_control(closed_loop_dt/1000000.0);
+    max_closed_loop_dt = max(max_closed_loop_dt, closed_loop_dt);
   }
+  last_time_closed_loop = now;
 }
 
 
 void receive()
-{   
-   if(dasta.communication.receive()==1)
-      dasta.runDecisionOnUserEvent();
-  
+{
+  if (dasta.communication.receive() == 1)
+    dasta.runDecisionOnUserEvent();
+
   if (!dasta.communication.SerialBT.connected(100)) // safety feature
   {
     Serial.println("Bluetooth disconnected");
@@ -46,30 +56,43 @@ void receive()
   }
 }
 
-float last_time_send = 0;
-void send(const float now)
+int64_t last_time_send = 0, send_dt = 0, max_send_dt = 0;
+void send(const int64_t &now)
 {
-  if (now - last_time_send > dasta.communication.send_stream.delay/1000.0)
+
+  if (now - last_time_send < dasta.communication.send_stream.delay * 1000)
+    return;
+
+  if (last_time_send != 0)
   {
-    last_time_send = now;
-    bool new_lipo_track = dasta.sensors.LiPo.run(now);
-    if (new_lipo_track)
-      dasta.communication.send_stream.enable("battery_voltages");
-    if (dasta.decisionnal_unit.internal_event)
-          dasta.communication.send_stream.enable("internal_event");
+    send_dt = now - last_time_send;
+    max_send_dt = max(max_send_dt, send_dt);
+  }
+  last_time_send = now;
+  bool new_lipo_track = dasta.sensors.LiPo.run(now/1000000.0);
+  if (new_lipo_track)
+  {
+    dasta.communication.send_stream.enable("battery_voltages");
+    dasta.communication.send_stream.enable("battery_lvl");
+  }
+  if (dasta.decisionnal_unit.internal_event)
+    dasta.communication.send_stream.enable("internal_event");
 
-    dasta.communication.send();
+  dasta.communication.send();
 
-    if (new_lipo_track)
-      dasta.communication.send_stream.disable("battery_voltages");
-    if (dasta.decisionnal_unit.internal_event)
-      {
-        dasta.decisionnal_unit.internal_event = 0;
-        dasta.communication.send_stream.enable("internal_event");
-      }
-
+  if (new_lipo_track)
+  {
+    dasta.communication.send_stream.disable("battery_voltages");
+    dasta.communication.send_stream.disable("battery_lvl");
+  }
+  if (dasta.decisionnal_unit.internal_event)
+  {
+    dasta.decisionnal_unit.internal_event = 0;
+    dasta.communication.send_stream.enable("internal_event");
   }
 }
+
+
 
 String vec2str(Vector &v, const int precision = 3)
 {
@@ -82,47 +105,48 @@ String vec2str(Vector &v, const int precision = 3)
   return s;
 }
 
-float last_time_print = 0;
-void print(const float now)
+#ifdef PRINT_DT_ms
+int64_t last_time_print = 0, print_dt = 0, max_print_dt = 0;
+void print(const int64_t &now)
 {
-  if (now - last_time_print > PRINT_DT_s)
-  {
-    last_time_print = now;
-    // Serial.print("battery :" + vec2str(dasta.sensors.LiPo.voltages) + " | " + vec2str(dasta.sensors.LiPo.charges));
-    // Serial.print("thrust = " + String(dasta.thrust) + "\t");
-    // Serial.print("gyro_raw = " + vec2str(dasta.sensors.gyro_raw));
-    // Serial.print("\tacc_raw = " + vec2str(dasta.sensors.acc_raw));
-    // Serial.print("\th_val[0] =" + vec2str(dasta.estimator.ekf.h_val[0]));
-    // Serial.print("\testimator.running = " + String(dasta.estimator.running));
-    // Serial.print("\tattitude_control_running = " + String(dasta.attitude_control_running));
-    // Serial.print("\tangular_velocity_control_running = " + String(dasta.angular_velocity_control_running));
-    Serial.print("acc = " + vec2str(dasta.sensors.acc,2));
-    Serial.print("\tq = " + vec2str(dasta.estimator.orientation,2));
-    Serial.print("\trpy = " + vec2str(dasta.estimator.rpy,2));
-    Serial.print("\tgyro = " + vec2str(dasta.sensors.gyro));
-    Serial.println("\trot_vel_command = " + vec2str(dasta.angular_velocity_command,2));
-  }
-}
+  if (!Serial)
+    return;
+  if (now - last_time_print < PRINT_DT_ms * 1000)
+    return;
 
+  if (last_time_print != 0)
+  {
+    print_dt = now - last_time_print;
+    max_print_dt = max(max_print_dt, print_dt);
+  }
+  last_time_print = now;
+  // Serial.print("kalman_dt:" + String(kalman_dt) + ",max_kalman_dt:" + String(max_kalman_dt) );
+  // Serial.print(",closed_loop_dt:" + String(closed_loop_dt) + ",max_closed_loop_dt:" + String(max_closed_loop_dt));
+  // Serial.print(",send_dt:" + String(send_dt) + ",max_send_dt:" + String(max_send_dt));
+  // Serial.print(",print_dt:" + String(print_dt) + ",max_print_dt:" + String(max_print_dt));
+  Serial.print("x:" + String(dasta.estimator.lpf_gyr_derx.getFilteredValue()) + ",y:" + String(dasta.estimator.lpf_gyr_dery.getFilteredValue()));
+  Serial.println();
+  max_kalman_dt = kalman_dt;
+  max_closed_loop_dt = closed_loop_dt;
+  max_send_dt = send_dt;
+  max_print_dt = print_dt;
+}
+#endif
 
 void setup()
 {
   Serial.begin(115200);
   dasta.init();
-  // pinMode(5, OUTPUT);
-  // pinMode(17, OUTPUT);
-  // digitalWrite(17, HIGH);
-  // digitalWrite(5, HIGH);
-
 }
 
 void loop()
 {
-  now = millis() / 1000.0;
-  kalman(now);
-  closed_loop(now);
+  dasta.now = esp_timer_get_time();
+  kalman(dasta.now);
+  closed_loop(dasta.now);
   receive();
-  send(now);
-  print(now);
-  delayMicroseconds(100);
+  send(dasta.now);
+  #ifdef PRINT_DT_ms
+  print(dasta.now);
+  #endif
 }

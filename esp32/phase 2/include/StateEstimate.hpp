@@ -2,18 +2,16 @@
 #define STATEESTIMATE_HPP
 #include "ekf.hpp"
 #include "quaternion.hpp"
-
+#include "lowPassFilter.hpp"
 class StateEstimate
 {
-private:
-    float last_time_proprio=-1;
-    float last_time_extero=-1;
-
 public:
+
     bool running = false;
+
     StateEstimate();
     ~StateEstimate();
-    void run(const float time);
+    void run(const float dt);
     Ekf ekf;
     data_type *dt_proprio;
     data_type *gravity;
@@ -21,6 +19,9 @@ public:
     Quaternion orientation = Quaternion(nullptr);
     Vector rpy = Vector(3);
     void initFromAccel(const Vector &accel);
+
+    Vector last_gyro = Vector(3);
+    LowPassFilter lpf_gyr_derx, lpf_gyr_dery, lpf_gyr_derz;
 };
 
 #endif // STATEESTIMATE_HPP

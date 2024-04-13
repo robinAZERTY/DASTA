@@ -14,11 +14,8 @@ class SensorPreProcessing
     ~SensorPreProcessing();
 
     void init();
-    void readSensors();
+    bool readSensors(const int64_t &now = esp_timer_get_time());
     void compensateIMU();
-    void compensateGyroBias();
-
-    void startGyroBiasEstimation();
     BatteryTracker3s LiPo;
     MPU6500 imu = MPU6500(Wire, 0x68);
     // Cam cam1, cam2;
@@ -30,9 +27,5 @@ class SensorPreProcessing
 
     bool imu_compensated = false;
     Vector tmp;
-
-    bool gyro_bias_estimation_running = false;
-    bool gyro_bias_compensated = false;
-    unsigned long long gyro_bias_estimation_count = 0;
 };
 #endif // SENSOR_PREPROCESSING_HPP

@@ -14,17 +14,20 @@ void Dasta::init()
     communication.device_name = "ESP32-Bluetooth";
     communication.start(); // wait for connection
     sensors.init();       // initialize the sensors (IMU)
+    rpy_offset.fill(0);
     inited = true;
     
 }
-void Dasta::run_angular_velocity_control(float time)
+void Dasta::run_angular_velocity_control(float dt)
 {
     if (!angular_velocity_control_running)
         return;
     // compute pid and write the control signal
-    float Crx = pidRx.compute(angular_velocity_command.data[0] - sensors.gyro.data[0], time);
-    float Cry = pidRy.compute(angular_velocity_command.data[1] - sensors.gyro.data[1], time);
-    float Crz = pidRz.compute(angular_velocity_command.data[2] - sensors.gyro.data[2], time);
+    // float Crx = pidRx.compute(angular_velocity_command.data[0] - sensors.gyro.data[0], dt);
+    // float Cry = pidRy.compute(angular_velocity_command.data[1] - sensors.gyro.data[1], dt);
+    float Crx = pidRx.compute_using_external_derivative(angular_velocity_command.data[0] - sensors.gyro.data[0], - estimator.lpf_gyr_derx.getFilteredValue(), dt);
+    float Cry = pidRy.compute_using_external_derivative(angular_velocity_command.data[1] - sensors.gyro.data[1], - estimator.lpf_gyr_dery.getFilteredValue(), dt);
+    float Crz = pidRz.compute(angular_velocity_command.data[2] - sensors.gyro.data[2], dt);
 
     float c1 = Crx + Cry - Crz;
     float c2 = -Crx + Cry + Crz;
@@ -50,81 +53,23 @@ void Dasta::run_angular_velocity_control(float time)
     actuators.motor4.write(c4 + thrust);
 }
 
-void Dasta::run_attitude_control(float time)
+void Dasta::run_attitude_control(float dt)
 {
     if (!attitude_control_running)
         return;
 
-
-
-    // data_type plate_angle = sqrt(communication.rpy_command.data[0] * communication.rpy_command.data[0] + communication.rpy_command.data[1] * communication.rpy_command.data[1]);
-    // // Serial.println("plate_angle : "+String(plate_angle));
-    // Vector axis(3);
-    // if (abs(plate_angle)<1e-6)
-    // {
-    //     axis.data[0] = 0;
-    //     axis.data[1] = 0;
-    //     axis.data[2] = 1;
-    // }
-    // else
-    // {
-    //     axis.data[0] = communication.rpy_command.data[0] / plate_angle;
-    //     axis.data[1] = communication.rpy_command.data[1] / plate_angle;
-    //     axis.data[2] = 0;
-    // }
-    // // Serial.println("axis : "+String(axis.data[0])+" "+String(axis.data[1])+" "+String(axis.data[2]));
-    // Quaternion q1(axis, plate_angle);
-    // // Serial.println("q1 : "+String(q1.data[0])+" "+String(q1.data[1])+" "+String(q1.data[2])+" "+String(q1.data[3]));
-    // Vector tmp(3);
-    // tmp.data[0] = 1;
-    // tmp.data[1] = 0;
-    // tmp.data[2] = 0;
-    // // Serial.println("current_orientation : "+String(estimator.orientation.data[0])+" "+String(estimator.orientation.data[1])+" "+String(estimator.orientation.data[2])+" "+String(estimator.orientation.data[3])+" ");
-    // rotate(axis,estimator.orientation,tmp);
-    // data_type current_yaw = atan2(axis.data[1],axis.data[0]);
-    // // Serial.println("current_yaw : "+String(current_yaw));
-
-
-    // tmp.data[0] = 0;
-    // tmp.data[1] = 0;
-    // tmp.data[2] = 1;
-    // // Serial.println("tmp : "+String(tmp.data[0])+" "+String(tmp.data[1])+" "+String(tmp.data[2]));
-    // Quaternion q_yaw(tmp,current_yaw);
-    // // Serial.println("q_yaw : "+String(q_yaw.data[0])+" "+String(q_yaw.data[1])+" "+String(q_yaw.data[2])+" "+String(q_yaw.data[3]));
-    // Quaternion q_goal;
-    // mul(q_goal,q_yaw,q1);
-    // // Serial.println("q_goal : "+String(q_goal.data[0])+" "+String(q_goal.data[1])+" "+String(q_goal.data[2])+" "+String(q_goal.data[3]));
-    // Quaternion q2;
-    // Quaternion q3;
-    // data_type forward = 0.05;
-    // data_type step = 0.001;
-    // slerp(q2,estimator.orientation,q_goal,forward-step);
-    // // Serial.println("current_orientation : "+String(estimator.orientation.data[0])+" "+String(estimator.orientation.data[1])+" "+String(estimator.orientation.data[2])+" "+String(estimator.orientation.data[3])+" ");
-    // // Serial.println("q_goal : "+String(q_goal.data[0])+" "+String(q_goal.data[1])+" "+String(q_goal.data[2])+" "+String(q_goal.data[3]));
-    // slerp(q3,estimator.orientation,q_goal,forward+step);
-    // // Serial.println("q2 : "+String(q2.data[0])+" "+String(q2.data[1])+" "+String(q2.data[2])+" "+String(q2.data[3]));
-    // // Serial.println("q3 : "+String(q3.data[0])+" "+String(q3.data[1])+" "+String(q3.data[2])+" "+String(q3.data[3]));
-    // sub(q1,q3,q2);
-    // // Serial.println("q1 : "+String(q1.data[0])+" "+String(q1.data[1])+" "+String(q1.data[2])+" "+String(q1.data[3]));
-    // mul(q1,q1,1.0/(step*2.0));
-    // // Serial.println("q1 : "+String(q1.data[0])+" "+String(q1.data[1])+" "+String(q1.data[2])+" "+String(q1.data[3]));
-    // mul(q_yaw,q1,estimator.orientation);
-    // // Serial.println("q_yaw : "+String(q_yaw.data[0])+" "+String(q_yaw.data[1])+" "+String(q_yaw.data[2])+" "+String(q_yaw.data[3]));
-    // mul(q_yaw,q_yaw,2);
-    // // Serial.println("q_yaw : "+String(q_yaw.data[0])+" "+String(q_yaw.data[1])+" "+String(q_yaw.data[2])+" "+String(q_yaw.data[3]));
-
-    // tmp.data[0] = 0;
-    // tmp.data[1] = 0;
-    // tmp.data[2] = 1;
-    // rotate(axis,estimator.orientation,tmp);
-    // data_type up = axis.data[2];
-    // data_type compensated_thrust = thrust/up;
-    // angular_velocity_command.data[0] = pidRoll.compute(q_yaw.data[1], time);
-    // angular_velocity_command.data[1] = pidPitch.compute(q_yaw.data[2], time);
-    // angular_velocity_command.data[2] = pidYaw.compute(q_yaw.data[3], time) + communication.angular_velocity_command.data[2];
-    angular_velocity_command.data[0] = pidRoll.compute(communication.rpy_command.data[0]-estimator.rpy.data[0]+0.04, time);
-    angular_velocity_command.data[1] = pidPitch.compute(communication.rpy_command.data[1] - estimator.rpy.data[1]-0.03, time);
+    angular_velocity_command.data[0] = pidRoll.compute(communication.rpy_command.data[0]-estimator.rpy.data[0]+rpy_offset.data[0], dt);
+    angular_velocity_command.data[1] = pidPitch.compute(communication.rpy_command.data[1] - estimator.rpy.data[1]+rpy_offset.data[1], dt);
     angular_velocity_command.data[2] = communication.angular_velocity_command.data[2];
 
-    this->run_angular_velocity_control(time);
+    this->run_angular_velocity_control(dt);
+}
+
+void Dasta::set_rpy_offset()
+{
+    cd(rpy_offset, estimator.rpy);
+}
+
+void Dasta::run(const float dt)
+{
 }

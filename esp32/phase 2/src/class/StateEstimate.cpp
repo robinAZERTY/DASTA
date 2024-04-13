@@ -9,20 +9,29 @@ StateEstimate::~StateEstimate()
 {
 }
 
-void StateEstimate::run(const float time)
+void StateEstimate::run(const float dt)
 {
     if (!running)
         return;
-    if (last_time_proprio > 0)
+
+    *dt_proprio = dt;
+    if (lpf_gyr_derx.firstRun)
     {
-        *dt_proprio = time - last_time_proprio;
-        // if (*dt_proprio > 0.015)
-        // {
-        //     Serial.println("warning : dt proprio too high (dt = " + String(*dt_proprio) + ")");
-        // }
-        ekf.predict();
+        lpf_gyr_derx.filter(0, *dt_proprio);
+        lpf_gyr_dery.filter(0, *dt_proprio);
+        lpf_gyr_derz.filter(0, *dt_proprio);
     }
-    last_time_proprio = time;
+    else
+    {
+        float gyr_derx = (ekf.u.data[0] - last_gyro.data[0]) / *dt_proprio;
+        float gyr_dery = (ekf.u.data[1] - last_gyro.data[1]) / *dt_proprio;
+        float gyr_derz = (ekf.u.data[2] - last_gyro.data[2]) / *dt_proprio;
+        cd(last_gyro, ekf.u);
+        lpf_gyr_derx.filter(gyr_derx, *dt_proprio);
+        lpf_gyr_dery.filter(gyr_dery, *dt_proprio);
+        lpf_gyr_derz.filter(gyr_derz, *dt_proprio);
+    }
+    ekf.predict();
 
     for (uint_fast8_t i = 0; i < ekf.getZNumber(); i++)
         ekf.update(i);

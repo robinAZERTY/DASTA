@@ -39,15 +39,14 @@ void Dasta::configActuators()
     // delay(1000);
     // actuators.motor4.write(0.0);
     // thrust = 0.2;
-    pidRx = Pid(0.03, 0.1, 0.004, 0.1, 0.02, -0.1, 0.1);
-
-    pidRy = Pid(0.03, 0.1, 0.004, 0.1, 0.02, -0.1, 0.1);
-    pidRz = Pid(0.15, 0.1, 0.0, 0.2, 0, -0.2, 0.2); 
+    pidRx = Pid(0.02, 0.03, 0.002, 0.02, 0.05, -0.1, 0.1);    
+    pidRy = Pid(0.02, 0.03, 0.002, 0.02, 0.05, -0.1, 0.1);
+    pidRz = Pid(0.15, 0.1, 0.0, 0.1, 0, -0.2, 0.2); 
     thrust = 0.0; 
-    pidRoll = Pid(5, 0, 0.0, 0, 0.0, -6, 6);
-    pidPitch = Pid(5, 0, 0.0, 0, 0.0, -6, 6);
-    pidYaw = Pid(5, 0, 0.0, 0, 0.0, -6, 6);
-    // pidRx = Pid(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    // pidRy = Pid(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    // pidRz = Pid(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);   
+    pidRoll = Pid(10, 0, 0.0, 0, 0.0, -12, 12);
+    pidPitch = Pid(10, 0, 0.0, 0, 0.0, -12, 12);
+    pidYaw = Pid(10, 0, 0.0, 0, 0.0, -12, 12);
+    estimator.lpf_gyr_derx.setTimeConstant(pidRx.timeConstDerFilter);
+    estimator.lpf_gyr_dery.setTimeConstant(pidRy.timeConstDerFilter);
+
 }

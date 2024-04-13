@@ -29,8 +29,10 @@ void BatteryTracker3s::init()
     pinMode(powerPin, INPUT);
 }
 
-void BatteryTracker3s::read()
+void BatteryTracker3s::read(float t)
 {
+    float dt = t - last_time;
+    last_time = t;
     float v1 = analogReadMilliVolts(pinCell1) * 0.001 * (_R1 + _R2) / _R2;
     float v2 = analogReadMilliVolts(pinCell2) * 0.001 * (_R3 + _R4) / _R4;
     float v3 = analogReadMilliVolts(pinCell3) * 0.001 * (_R5 + _R6) / _R6;
@@ -40,17 +42,30 @@ void BatteryTracker3s::read()
     voltages.data[1] = v2-v1;
     voltages.data[2] = v3-v2;
     voltages.data[3] = v4;
+    if (voltages.data[2] < 0)
+        voltages.data[2] = v4-v2;
+
     charge(0);
     charge(1);
     charge(2);
     charge(3);
+
+    lpfc1.filter(charges.data[0], dt);
+    lpfc2.filter(charges.data[1], dt);
+    lpfc3.filter(charges.data[2], dt);
+    lpfc4.filter(charges.data[3], dt);
+
+    charges.data[0] = lpfc1.getFilteredValue();
+    charges.data[1] = lpfc2.getFilteredValue();
+    charges.data[2] = lpfc3.getFilteredValue();
+    charges.data[3] = lpfc4.getFilteredValue();
 }
 
 float BatteryTracker3s::charge(uint8_t cell_index)
 {
-    if (cell_index == 0)
+    if (cell_index == 3)
     {
-        charges.data[cell_index] = (charges(1) + charge(2) + charge(3)) / 3;
+        charges.data[cell_index] = (charges(0) + charge(1) + charge(2)) / 3;
        return charges.data[cell_index];
      }
     float drop_out_voltage = internal_resistance * current_consumption;
@@ -77,7 +92,6 @@ bool BatteryTracker3s::run(float now)
     if (now - last_time < delay)
     return false;
 
-    last_time = now;
-    read();
+    read(now);
     return true;
 }

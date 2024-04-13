@@ -76,7 +76,7 @@ class MPU6500{
     int enableDataReadyInterrupt();
     int disableDataReadyInterrupt();
     int enableWakeOnMotion(float womThresh_mg,LpAccelOdr odr);
-    int readSensor();
+    int readSensor(const unsigned long long &time = micros());
     float getAccelX_mss();
     float getAccelY_mss();
     float getAccelZ_mss();

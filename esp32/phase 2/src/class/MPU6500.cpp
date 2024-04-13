@@ -343,13 +343,13 @@ int MPU6500::enableWakeOnMotion(float womThresh_mg,LpAccelOdr odr) {
 
 
 /* reads the most current data from MPU6500 and stores in buffer */
-int MPU6500::readSensor() {
+int MPU6500::readSensor(const unsigned long long &time) {
   _useSPIHS = true; // use the high speed SPI for data readout
   // grab the data from the MPU6500
   if (readRegisters(ACCEL_OUT, 21, _buffer) < 0) {
     return -1;
   }
-  _time = millis();
+  _time = time;
   // combine into 16 bit values
   _axcounts = (((int16_t)_buffer[0]) << 8) | _buffer[1];  
   _aycounts = (((int16_t)_buffer[2]) << 8) | _buffer[3];

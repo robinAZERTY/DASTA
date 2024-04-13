@@ -81,22 +81,23 @@ void Dasta::runDecisionOnUserEvent()
         // communication.send_stream.disable("mag");
         break;
     case UserEvent::StartGyroBiasEstimation:
-        sensors.startGyroBiasEstimation();
+        // sensors.startGyroBiasEstimation();
         break;
     case UserEvent::StopGyroBiasEstimation:
-        sensors.gyro_bias_estimation_running = false;
+        // sensors.gyro_bias_estimation_running = false;
         break;
     case UserEvent::EMERGENCY_STOP:
         actuators.stopMotors();
         ESP.restart();
         break;
     case UserEvent::engageMotors:
-        sensors.LiPo.read();
+        sensors.LiPo.read(this->now/1000000.0);
         if (sensors.LiPo.voltages.data[3]<6)
             decisionnal_unit.internal_event = EmbeddedEvent::WaitingForBatteryPower;
         else
         {
         actuators.engageMotors();
+        set_rpy_offset();
         attitude_control_running = true;
         angular_velocity_control_running = true;
         pidRx.reset_integrale();
