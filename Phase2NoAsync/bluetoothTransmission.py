@@ -15,9 +15,8 @@ data_to_send = []
 inited = False
 
 
-default_bl_address = '24:6F:28:7B:DB:22'
 
-STD_TYPE_KEY = ['c', 'i', 'Q', 'f', 'd','B']
+STD_TYPE_KEY = ['c', 'i', 'Q', 'f', 'd','B','L']
 VECTOR_KEY = 'v'
 MATRIX_KEY = 'm'
 VECTOR_CONTENT_TYPE_KEY = 'f'
@@ -25,6 +24,8 @@ VECTOR_CONTENT_TYPE_SIZE = 4
 
 
 bl_connection = None
+total_received_counter = 0
+total_sent_counter = 0
 
 '''
 _______________________________________________________
@@ -119,26 +120,6 @@ _______________________________________________________
 '''
 SEND_HEADER_KEY = "receive_stream:".encode("utf-8")
 
-def getTypeKey(var):
-    if type(var) == int:
-        return 'i'
-    elif type(var) == float:
-        return 'f'
-    elif type(var) == str:
-        if len(var) == 1:
-            return 'c'
-        else:
-            return 's'
-    elif type(var) == list:
-        oneElement = var[0]
-        if type(oneElement) != list:
-            return 'v'
-        else:
-            return 'm'
-    else:
-        print("Error: unknown type")
-        return None
-    
     
 def packOne_data(One_data, formatt):
     packedData = None
@@ -184,6 +165,7 @@ def pack_data(data, header):
 send_head = None
 
 def send(s, data, send_head):
+    global total_sent_counter
     if send_head == None:
         print("Error: header not received yet, can't send the data")
         return None
@@ -195,6 +177,7 @@ def send(s, data, send_head):
         return None
     #send the data
     to_send = packed_data + END_LINE_KEY  
+    total_sent_counter += 1
     s.sendall(to_send)  
    
 '''
@@ -272,7 +255,7 @@ DEBUG = True
 #import select
 def receive(bl_connection):
     datas = []
-    global receive_buffer
+    global receive_buffer, total_received_counter, receive_head, send_head, inited
 
     receive_buffer += bl_connection.recv(1024)    
     #split the receive_buffer by the end line key
@@ -292,8 +275,9 @@ def receive(bl_connection):
                 print("receive_head : ")
                 pp.pprint(tmp)
                 
-            global receive_head
             receive_head = tmp
+            if send_head is not None:
+                inited = True
             
         elif line[:len(SEND_HEADER_KEY)] == SEND_HEADER_KEY:
             head_bytes = line[len(SEND_HEADER_KEY):]
@@ -302,10 +286,9 @@ def receive(bl_connection):
             if DEBUG:
                 print("send_head : ")
                 pp.pprint(tmp)
-            global send_head
             send_head = tmp
-            global inited
-            inited = True
+            if receive_head is not None:
+                inited = True
         else:
             if receive_head == None:
                 print("Error: header not received yet, can't decode the data")
@@ -314,10 +297,13 @@ def receive(bl_connection):
             new_datas = unpack_line(line, receive_head)
             if print_reception:
                 print("received : " + str(new_datas))
-            datas.append(new_datas)
+            if new_datas is not None:
+                datas.append(new_datas)
     
     if len(datas) == 0:
         return None
+    
+    total_received_counter += len(datas)
     return datas
 
 
@@ -380,7 +366,7 @@ def receive_task(bl_connection):
     if receive_head is None:
         return
     if new_data is not None:
-        received_data.append(new_data)
+        received_data += new_data
 
 def receive_async_task(bl_connection):
     while True:
@@ -409,13 +395,21 @@ _______________________________________________________
 _____________________MAIN PROG_________________________
 _______________________________________________________
 '''
-def init_transmission(address = default_bl_address):
+def init_transmission(address):
     if fake_transmission:
         return
     connect(address)
     if use_async_receive:
         threading.Thread(target=receive_async_task, args=(bl_connection,)).start()
-    time.sleep(0.5)
+    
+    while not inited:
+        time.sleep(0.01)
+        
+def kill_transmission():
+    global bl_connection
+    if bl_connection is not None:
+        bl_connection.close()
+        bl_connection = None
     
 def run_transmission():
     if bl_connection == None:
@@ -429,30 +423,65 @@ def run_transmission():
 
 # Exécutez le programme principal
 
-"""
-in cpp 
-enum UserEvent : uint8_t
-{
-    None=0,
-    StartStateEstimate,
-    StopStateEstimate,
-    StartStream,
-    StopStream,
-    EnableStateEstimateStream,
-    DisableStateEstimateStream,
-    EnableSensorStream,
-    DisableSensorStream,
-    StartGyroBiasEstimation,
-    StopGyroBiasEstimation,
-    StartAttitudeControl,
-    StopAttitudeControl,
-    EMERGENCY_STOP
-};
-"""
+# compute the send_stream_register (embedded)
+#(a 'L', an unsigned long, is 4 bytes, 
+# whitch each bits represent the state of the stream channel)
+send_stream_register = 0
+def enable_stream_channel(channels):
+    global send_stream_register, receive_head
+    if receive_head is None:
+        print("Error: header not received yet, can't enable the stream channel")
+        return
+    channels_indexes = [i for i in range(len(receive_head)) if receive_head[i]["name"] in channels]
+    for i in channels_indexes:
+        send_stream_register += 1 << i
+    data_to_send.append({"send_stream_register": send_stream_register})
+
+def disable_stream_channel(channels):
+    global send_stream_register, receive_head
+    if receive_head is None:
+        print("Error: header not received yet, can't disable the stream channel")
+        return
+    channels_indexes = [i for i in range(len(receive_head)) if receive_head[i]["name"] in channels]
+    for i in channels_indexes:
+        send_stream_register -= 1 << i
+    data_to_send.append({"send_stream_register": send_stream_register})
+
+
+user_event_dict = {
+    "None": 0,
+    "EnableStream": 1,
+    "DisableStream": 2,
+    "SwitchToRaceMode": 3,
+    "SwitchToAttiMode": 4,
+    "SwitchToVelMode": 5,
+    "SwitchToPosMode": 6,
+    "EngageMotors": 7,
+    "DisengageMotors": 8,
+    "EMERGENCY_STOP": 9
+}
+
+embedded_event_dict = {
+    "None2": 0,
+    "WaitingForBatteryPower": 1,
+    "WaitingForCalibration": 2,
+    "WaitingForKalmanConvergence": 3,
+    "ReadyToFly": 4,
+    "LowBattery": 5
+}
+
 if __name__ == "__main__":
-    init_transmission('FC:F5:C4:27:09:16')
+    init_transmission("08:D1:F9:CE:C3:76")
+    # enable_stream_channel(["time","gyro_raw", "acc_raw"])
+
+    enable_stream_channel([receive_head[i]["name"] for i in range(len(receive_head))])
+
+    data_to_send.append({"user_event": user_event_dict["EnableStream"],"send_stream_delay": 50})
     
-    data_to_send = [{"user_event": 3, "send_stream_delay": 500},
-                    {"user_event": 7}]
     while True:
         run_transmission()
+        if len(received_data) >= 100:
+            print("last received : " + str(received_data[-1]))
+            received_data = []
+            print("total received : " + str(total_received_counter))
+            print("flushing")

@@ -28,52 +28,52 @@ pygame.init()
 pygame.joystick.init()
 
 #define screen size
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 500
+# SCREEN_WIDTH = 800
+# SCREEN_HEIGHT = 500
 
 #create game window
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Joysticks")
+# screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+# pygame.display.set_caption("Joysticks")
 
 #create empty list to store joysticks
 joysticks = []
 
 new_data = False#flag to indicate new data has been received
 
-display_attitude = [1, 0, 0, 0]
-display_position = [0, 0, 0]
-def draw_box(attitude = None,position=None,color = (255, 255, 255)):
-    if attitude is None:
-        attitude = display_attitude
-    if position is None:
-        position = display_position
-    #project the box on the image using the calibration.prject function
-    dx = 0.40
-    dy = 0.40
-    dz = 0.1
-    vertices = np.array([[-dx/2,-dy/2,-dz/2],
-                            [dx/2,-dy/2,-dz/2],
-                            [dx/2,dy/2,-dz/2],
-                            [-dx/2,dy/2,-dz/2],
-                            [-dx/2,-dy/2,dz/2],
-                            [dx/2,-dy/2,dz/2],
-                            [dx/2,dy/2,dz/2],
-                            [-dx/2,dy/2,dz/2]])
-    #project the vertices
-    projected = []
-    for vertex in vertices:
-        projected.append(calibration.project(vertex, np.array(attitude), np.array(position), np.array([-2,0,0]), np.array([0.5, 0.5, 0.5, 0.5]), 300))
+# display_attitude = [1, 0, 0, 0]
+# display_position = [0, 0, 0]
+# def draw_box(attitude = None,position=None,color = (255, 255, 255)):
+#     if attitude is None:
+#         attitude = display_attitude
+#     if position is None:
+#         position = display_position
+#     #project the box on the image using the calibration.prject function
+#     dx = 0.40
+#     dy = 0.40
+#     dz = 0.1
+#     vertices = np.array([[-dx/2,-dy/2,-dz/2],
+#                             [dx/2,-dy/2,-dz/2],
+#                             [dx/2,dy/2,-dz/2],
+#                             [-dx/2,dy/2,-dz/2],
+#                             [-dx/2,-dy/2,dz/2],
+#                             [dx/2,-dy/2,dz/2],
+#                             [dx/2,dy/2,dz/2],
+#                             [-dx/2,dy/2,dz/2]])
+#     #project the vertices
+#     projected = []
+#     for vertex in vertices:
+#         projected.append(calibration.project(vertex, np.array(attitude), np.array(position), np.array([-2,0,0]), np.array([0.5, 0.5, 0.5, 0.5]), 300))
 
-    #draw the lines
-    for i, j in [(0, 1), (1, 2), (2, 3), (3, 0),
-                    (4, 5), (5, 6), (6, 7), (7, 4),
-                    (0, 4), (1, 5), (2, 6), (3, 7)]:
-            pygame.draw.line(screen,
-                            color,
-                            (round(projected[i][0] + screen.get_width()/2),
-                            round(projected[i][1] + screen.get_height()/2)),
-                            (round(projected[j][0] + screen.get_width()/2),
-                            round(projected[j][1] + screen.get_height()/2)), 1)
+#     #draw the lines
+#     for i, j in [(0, 1), (1, 2), (2, 3), (3, 0),
+#                     (4, 5), (5, 6), (6, 7), (7, 4),
+#                     (0, 4), (1, 5), (2, 6), (3, 7)]:
+#             pygame.draw.line(screen,
+#                             color,
+#                             (round(projected[i][0] + screen.get_width()/2),
+#                             round(projected[i][1] + screen.get_height()/2)),
+#                             (round(projected[j][0] + screen.get_width()/2),
+#                             round(projected[j][1] + screen.get_height()/2)), 1)
 
 def is_new_data():
     global x, y, z, thrust, ThrustTilte, last_x, last_y, last_z, last_thrust, last_ThrustTilte, new_data
@@ -132,6 +132,7 @@ def run_controller():
 clock = pygame.time.Clock()
 FPS = 60
 
+
 running = True
 def run():
     global running
@@ -154,3 +155,5 @@ def run():
 if __name__ == "__main__":
     while True:
         run()
+        if is_new_data():
+            print(x, y, z, thrust, ThrustTilte)

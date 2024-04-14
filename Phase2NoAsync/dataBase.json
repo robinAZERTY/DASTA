@@ -1,0 +1,87 @@
+{
+    "bluetooth_address": "08:D1:F9:CE:C3:76",
+    "calibration": {
+        "last_calibration": {
+            "date": "2024-04-14 13:02:32",
+            "data": {
+                "gyro_bias_co": [
+                    -0.11896539564419907,
+                    0.012694509160569165,
+                    -0.015780466117347472
+                ],
+                "acc_bias_co": [
+                    -0.0560912679013639,
+                    0.1483948803669653,
+                    -0.5406994399014228
+                ],
+                "gyro_scale_co": [
+                    [
+                        1.0095270720940326,
+                        -0.006502963491368057,
+                        -0.0009163382881876442
+                    ],
+                    [
+                        0.011263640184387785,
+                        1.001754653043537,
+                        0.009827374124837161
+                    ],
+                    [
+                        -0.006914491274247384,
+                        0.007181100172026654,
+                        0.998832585708012
+                    ]
+                ],
+                "acc_scale_co": [
+                    [
+                        0.9921890274118018,
+                        -0.0083805195897565,
+                        0.00795622439258923
+                    ],
+                    [
+                        0.007551945246112519,
+                        0.9987173123942706,
+                        0.009975625312003923
+                    ],
+                    [
+                        -0.0005677593159086044,
+                        -0.007056947631665735,
+                        0.9910633866799974
+                    ]
+                ]
+            }
+        },
+        "initilization": {
+            "gravity": 9.812,
+            "orientation_covariance": 0.1,
+            "gyro_noise": 0.0017,
+            "gyro_std_bias": 0.03,
+            "gyro_std_cross": 0.01,
+            "gyro_std_gain": 0.01,
+            "acc_noise": 0.1,
+            "acc_std_bias": 0.7848,
+            "acc_std_cross": 0.01,
+            "acc_std_gain": 0.01
+        },
+        "tolerance": {
+            "gyro_bias": 0.0003,
+            "acc_bias": 0.005,
+            "gyro_ortho": 0.005,
+            "acc_ortho": 0.005
+        }
+    },
+    "user_control": {
+        "remote_commands": [
+            0.0,
+            0.0,
+            0.0,
+            0
+        ],
+        "remote_angula_velocity_sensitive": 0.5,
+        "remote_yaw_sensitive": 1.0,
+        "remote_attitude_sensitive": 0.1,
+        "user_event": 1,
+        "send_stream_delay": 50
+    },
+    "real_time_telemetry": null,
+    "telemetry_history": null
+}
