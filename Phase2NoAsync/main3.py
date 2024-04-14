@@ -47,7 +47,7 @@ default_content ={
             "remote_yaw_sensitive" : 1.0,
             "remote_attitude_sensitive" : 0.1,
             "user_event": bluetoothTransmission.user_event_dict["EnableStream"],
-            "send_stream_delay": 50
+            "send_stream_delay_ms": 50
         },
     'real_time_telemetry': None,
     'telemetry_history': None
@@ -71,11 +71,10 @@ dataBase.truncate()
 dataBase.seek(0)
 
 
-
 running_calib = False
 useFakeDrone = False
 calibration_sensor_stream_delay = 20
-normal_sensor_stream_delay = 100
+normal_sensor_stream_delay = 50
 
 #modify the section ['calibration']['last_calibration'] of the dataBase
 def modify_calibration(new_calib):
@@ -109,7 +108,7 @@ def begin_calibration(dataBase_content):
     running_calib = True
     first_ekf_iteration = True
     bluetoothTransmission.enable_stream_channel(["time","gyro_raw","acc_raw"])
-    bluetoothTransmission.data_to_send.append({"send_stream_delay" : calibration_sensor_stream_delay})
+    bluetoothTransmission.data_to_send.append({"send_stream_delay_ms" : calibration_sensor_stream_delay})
 
 def update_dataBase_on_received_data(data):
     last_data = data[-1]
@@ -136,11 +135,11 @@ def find_key(dictionnaire, valeur):
 def on_received_data():
     global running_calib, first_ekf_iteration
     
-    # update_dataBase_on_received_data(bluetoothTransmission.received_data)
+    update_dataBase_on_received_data(bluetoothTransmission.received_data)
     
     for data in bluetoothTransmission.received_data:
-        if "time" in data and "gyro_raw" in data and "acc_raw" in data:
-            calibration.imu.time = data["time"]/1000000.0
+        if "time_us" in data and "gyro_raw" in data and "acc_raw" in data:
+            calibration.imu.time = data["time_us"]/1000000.0
             calibration.imu.new_gyr_sample = np.array(data["gyro_raw"])
             calibration.imu.new_acc_sample = np.array(data["acc_raw"])
             if running_calib:
@@ -160,8 +159,10 @@ def on_received_data():
                     modify_calibration(calibration.calibration.getCalibrationData())
                     bluetoothTransmission.enable_stream_channel([bluetoothTransmission.receive_head[i]["name"] for i in range(len(bluetoothTransmission.receive_head))])
                     bluetoothTransmission.disable_stream_channel(["internal_event"])
-                    bluetoothTransmission.data_to_send.append({"send_stream_delay" : normal_sensor_stream_delay})
+                    bluetoothTransmission.data_to_send.append({"send_stream_delay_ms" : normal_sensor_stream_delay})
                     print("Calibration done")
+        if ("internal_event" in data):
+            print("Internal event received: ", find_key(bluetoothTransmission.embedded_event_dict, data["internal_event"]))
     #flush the received data
     bluetoothTransmission.received_data = []
     
@@ -179,7 +180,7 @@ def setup():
         bluetoothTransmission.data_to_send.append(dataBase_content['calibration']['last_calibration']['data'])
         bluetoothTransmission.enable_stream_channel([bluetoothTransmission.receive_head[i]["name"] for i in range(len(bluetoothTransmission.receive_head))])
         bluetoothTransmission.disable_stream_channel(["internal_event"])
-        bluetoothTransmission.data_to_send.append({"send_stream_delay" : normal_sensor_stream_delay})
+        bluetoothTransmission.data_to_send.append({"send_stream_delay_ms" : normal_sensor_stream_delay})
     
     bluetoothTransmission.data_to_send.append({"user_event": bluetoothTransmission.user_event_dict["EnableStream"]})
     bluetoothTransmission.data_to_send.append({"user_event" : bluetoothTransmission.user_event_dict["SwitchToAttiMode"]})
@@ -189,7 +190,7 @@ last_time_pack_command = time.time()
 def pack_command():
     global last_time_pack_command
     t = time.time()
-    if t-last_time_pack_command < 0.05 or not gamecontroller.is_new_data():
+    if t-last_time_pack_command < 0.02 or not gamecontroller.is_new_data():
         return
     last_time_pack_command = t
     bluetoothTransmission.data_to_send.append({"remote_commands" : [gamecontroller.x, gamecontroller.y, gamecontroller.z, gamecontroller.thrust+gamecontroller.ThrustTilte]})
@@ -208,4 +209,4 @@ if __name__ == "__main__":
             on_received_data()
         gamecontroller.run()
         pack_command()
-        time.sleep(0.01)
+        time.sleep(0.001)
