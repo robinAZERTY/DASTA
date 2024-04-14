@@ -13,7 +13,10 @@ public:
     ~LowPassFilter(){};
 
     void setTimeConstant(float timeConstant) { this->timeConstant = timeConstant; }
-    float getFilteredValue() { return filteredValue; }
+    float getFilteredValue() { 
+        if (isinff(filteredValue) || isnanf(filteredValue))
+            filteredValue = 0;
+        return filteredValue; }
     void reset() { firstRun = true; }
     void filter(float value, float dt)
     {

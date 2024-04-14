@@ -50,6 +50,10 @@ namespace vector
     void mul(Vector &res, const Vector &a, const data_type b);
     void mul(data_type &res, const Vector &a, const Vector &b);
 
+    // equal : a==b
+    bool eq(const Vector &a, const Vector &b);
+    bool eq(const Vector &a, const data_type b);
+
 } // namespace vector
 using namespace vector;
 

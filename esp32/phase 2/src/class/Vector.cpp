@@ -92,3 +92,24 @@ void vector::mul(data_type &res, const Vector &a, const Vector &b)
     for (uint_fast8_t i = 0; i < a.size; i++)
         res += a.data[i] * b.data[i];
 }
+
+bool vector::eq(const Vector &a, const Vector &b)
+{
+    if (a.size != b.size)
+        return false;
+
+    for (uint_fast16_t i = 0; i < a.size; i++)
+        if (a.data[i] != b.data[i])
+            return false;
+
+    return true;
+}
+
+bool vector::eq(const Vector &a, const data_type b)
+{
+    for (uint_fast16_t i = 0; i < a.size; i++)
+        if (a.data[i] != b)
+            return false;
+
+    return true;
+}

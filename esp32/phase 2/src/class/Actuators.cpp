@@ -14,6 +14,7 @@ void Actuators::stopMotors()
     motor2.disengage();
     motor3.disengage();
     motor4.disengage();
+    motor_speeds.fill(0);
 }
 
 void Actuators::engageMotors()

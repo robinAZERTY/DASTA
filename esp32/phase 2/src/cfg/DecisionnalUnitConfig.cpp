@@ -2,27 +2,21 @@
 
 enum UserEvent : uint8_t
 {
-    None=0,
-    StartStateEstimate,
-    StopStateEstimate,
-    StartStream,
-    StopStream,
-    EnableStateEstimateStream,
-    DisableStateEstimateStream,
-    EnableSensorStream,
-    DisableSensorStream,
-    StartGyroBiasEstimation,
-    StopGyroBiasEstimation,
-    StartAttitudeControl,
-    StopAttitudeControl,
-    EMERGENCY_STOP,
-    engageMotors,
-    disengageMotors
+    None = 0,
+    EnableStream,
+    DisableStream,
+    SwitchToRaceMode,
+    SwitchToAttiMode,
+    SwitchToVelMode,
+    SwitchToPosMode,
+    EngageMotors,
+    DisengageMotors,
+    EMERGENCY_STOP
 };
 
 enum EmbeddedEvent : uint8_t
 {
-    None2=0,
+    None2 = 0,
     WaitingForBatteryPower,
     WaitingForCalibration,
     WaitingForKalmanConvergence,
@@ -30,91 +24,58 @@ enum EmbeddedEvent : uint8_t
     LowBattery,
 };
 
-
 void Dasta::runDecisionOnUserEvent()
 {
     switch (decisionnal_unit.user_event)
     {
     case UserEvent::None:
         break;
-    case UserEvent::StartStateEstimate:
-        estimator.initFromAccel(sensors.acc);
-        estimator.running = true;
-        break;
-    case UserEvent::StopStateEstimate:
-        estimator.running = false;
-        break;
-    case UserEvent::StartStream:
+    case UserEvent::EnableStream:
         communication.running_send_stream = true;
         break;
-    case UserEvent::StopStream:
+    case UserEvent::DisableStream:
         communication.running_send_stream = false;
         break;
-    case UserEvent::StartAttitudeControl:
-        
-        attitude_control_running = true;
-        angular_velocity_control_running = true;
+    case UserEvent::SwitchToRaceMode:
+        control_mode = ControlMode::ANGULAR_VELOCITY;
         break;
-    case UserEvent::StopAttitudeControl:
-        attitude_control_running = false;
-        angular_velocity_control_running = false;
+    case UserEvent::SwitchToAttiMode:
+        control_mode = ControlMode::ATTITUDE;
         break;
-
-    // case UserEvent::EnableStateEstimateStream:
-    //     communication.send_stream.enable("position");
-    //     communication.send_stream.enable("velocity");
-    //     communication.send_stream.enable("orientation");
-    //     break;
-    // case UserEvent::DisableStateEstimateStream:
-    //     communication.send_stream.disable("position");
-    //     communication.send_stream.disable("velocity");
-    //     communication.send_stream.disable("orientation");
-    //     break;
-    case UserEvent::EnableSensorStream:
-        communication.send_stream.enable("acc");
-        communication.send_stream.enable("gyro");
-        // communication.send_stream.enable("mag");
+    case UserEvent::SwitchToVelMode:
+        control_mode = ControlMode::VELOCITY;
         break;
-    case UserEvent::DisableSensorStream:
-        communication.send_stream.disable("acc");
-        communication.send_stream.disable("gyro");
-        // communication.send_stream.disable("mag");
+    case UserEvent::SwitchToPosMode:
+        control_mode = ControlMode::POSITION;
         break;
-    case UserEvent::StartGyroBiasEstimation:
-        // sensors.startGyroBiasEstimation();
+    case UserEvent::EngageMotors:
+        sensors.LiPo.read(this->now/1000000.0);
+        if (sensors.LiPo.voltages.data[3]<6)
+            decisionnal_unit.internal_event = EmbeddedEvent::WaitingForBatteryPower;
+        else if(sensors.LiPo.charges.data[3]<0.10)
+            decisionnal_unit.internal_event = EmbeddedEvent::LowBattery;
+        else if (!sensors.calibrate)
+            decisionnal_unit.internal_event = EmbeddedEvent::WaitingForCalibration;
+        else if (estimator.get_orientation_max_cov()>0.05)
+            decisionnal_unit.internal_event = EmbeddedEvent::WaitingForKalmanConvergence;
+        else
+        {
+        decisionnal_unit.internal_event = EmbeddedEvent::ReadyToFly;
+        actuators.engageMotors();
+        pidRx.reset_integrale();
+        pidRy.reset_integrale();
+        pidRz.reset_integrale();
+        estimator.set_rp_offset();
+        }
         break;
-    case UserEvent::StopGyroBiasEstimation:
-        // sensors.gyro_bias_estimation_running = false;
+    case UserEvent::DisengageMotors:
+        actuators.stopMotors();
         break;
     case UserEvent::EMERGENCY_STOP:
         actuators.stopMotors();
         ESP.restart();
         break;
-    case UserEvent::engageMotors:
-        sensors.LiPo.read(this->now/1000000.0);
-        if (sensors.LiPo.voltages.data[3]<6)
-            decisionnal_unit.internal_event = EmbeddedEvent::WaitingForBatteryPower;
-        else
-        {
-        actuators.engageMotors();
-        set_rpy_offset();
-        attitude_control_running = true;
-        angular_velocity_control_running = true;
-        pidRx.reset_integrale();
-        pidRy.reset_integrale();
-        pidRz.reset_integrale();
-        }
-        break;
-    case UserEvent::disengageMotors:
-        actuators.stopMotors();
-        attitude_control_running = false;
-        angular_velocity_control_running = false;
-        break;
-
-    default:
-        break;
     }
 
     decisionnal_unit.user_event = UserEvent::None;
-
 }

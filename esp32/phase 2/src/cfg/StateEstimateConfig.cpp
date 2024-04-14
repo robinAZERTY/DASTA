@@ -153,4 +153,10 @@ void Dasta::configureStateEstimate()
         estimator.orientation.data = estimator.ekf.x.data;
         estimator.dt_proprio = &estimator.ekf.c.data[0];
         estimator.gravity = &estimator.ekf.c.data[1];
+
+        estimator.velocity.fill(0);
+        estimator.position.fill(0);
+        estimator.rpy.fill(0);
+        estimator.rpy_leveled.fill(0);
+        estimator.rp_offset.fill(0);
 }

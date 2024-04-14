@@ -17,8 +17,8 @@ SensorPreProcessing::SensorPreProcessing()
     acc_scale_co.alloc(3, 3);
     gyro_scale_co.alloc(3, 3);
 
-    acc_scale_co.set_eye();
-    gyro_scale_co.set_eye();
+    acc_scale_co.fill(0);
+    gyro_scale_co.fill(0);
 
     tmp.alloc(3);
 }
@@ -84,6 +84,10 @@ void SensorPreProcessing::compensateIMU()
     if (imu_compensated)
         return;
 
+    if (eq(acc_scale_co, 0) || eq(gyro_scale_co, 0))
+       return; 
+
+    calibrate = true;
     // compensate accelerometer
     add(acc, acc, acc_bias_co);
     mul(tmp, acc_scale_co, acc);

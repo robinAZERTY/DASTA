@@ -15,6 +15,7 @@ struct BL_types
     char VECTOR;
     char MATRIX;
     char UNSIGNED_CHAR;
+    char UNSIGNED_LONG;
 };
 
 struct BL_stream
@@ -61,10 +62,7 @@ public:
     BL_stream send_stream, receive_stream;
     BluetoothSerial SerialBT;
 
-    // angular velocity command
-    Vector angular_velocity_command = Vector(3);
-    Vector rpy_command = Vector(3);
-    Communication(){angular_velocity_command.fill(0); rpy_command.fill(0);};
+    Communication(){Serial.println("Communication created");};
     ~Communication(){}; // TODO : free data
     int start();
     int send_header(BL_stream *stream);

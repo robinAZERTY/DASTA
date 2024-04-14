@@ -7,7 +7,7 @@ class StateEstimate
 {
 public:
 
-    bool running = false;
+    bool running = true;
 
     StateEstimate();
     ~StateEstimate();
@@ -17,7 +17,13 @@ public:
     data_type *gravity;
 
     Quaternion orientation = Quaternion(nullptr);
+    data_type get_orientation_max_cov();
+    Vector rp_offset = Vector(2);
+    void set_rp_offset();
     Vector rpy = Vector(3);
+    Vector rpy_leveled = Vector(3);
+    Vector velocity = Vector(3);
+    Vector position = Vector(3);
     void initFromAccel(const Vector &accel);
 
     Vector last_gyro = Vector(3);

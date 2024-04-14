@@ -24,7 +24,7 @@ class SensorPreProcessing
 
     Vector acc_bias_co, gyro_bias_co;    // bias vector (3x1)
     Matrix acc_scale_co, gyro_scale_co; // scale matrix (3x3)
-
+    bool calibrate = false;
     bool imu_compensated = false;
     Vector tmp;
 };

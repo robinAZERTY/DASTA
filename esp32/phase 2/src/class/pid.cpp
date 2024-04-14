@@ -25,8 +25,6 @@ Pid::Pid(float kp, float ki, float kd, float maxIntegral, float timeConstDerFilt
 // Compute the control signal based on the error and current time
 float Pid::compute(float error, float dt)
 {
-
-
     integral += error * dt;
 
     float integraleComp = ki * integral;
@@ -37,7 +35,7 @@ float Pid::compute(float error, float dt)
 
     // compute the derivative filter
     float derivative = 0;
-    if (dt > 0)
+    if (dt > 1e-6)
         derivative = (error - lastError) / dt;
     lastError = error;
 
