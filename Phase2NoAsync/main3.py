@@ -99,15 +99,15 @@ def begin_calibration(dataBase_content):
     calibration.imu.setAccNoise(calib_settings['acc_noise'])
     calibration.imu.setAccBiasCov(calib_settings['acc_std_bias'])
     calibration.imu.setAccOrthoCov(calib_settings['acc_std_cross'],calib_settings['acc_std_gain'])
-    calibration.imu.gyr_bias_std_tol = json.load(dataBase)['calibration']['tolerance']['gyro_bias']
-    calibration.imu.acc_bias_std_tol = json.load(dataBase)['calibration']['tolerance']['acc_bias']
-    calibration.imu.gyr_ortho_std_tol = json.load(dataBase)['calibration']['tolerance']['gyro_ortho']
-    calibration.imu.acc_ortho_std_tol = json.load(dataBase)['calibration']['tolerance']['acc_ortho']
+    calibration.imu.gyr_bias_std_tol = dataBase_content['calibration']['tolerance']['gyro_bias']
+    calibration.imu.acc_bias_std_tol = dataBase_content['calibration']['tolerance']['acc_bias']
+    calibration.imu.gyr_ortho_std_tol = dataBase_content['calibration']['tolerance']['gyro_ortho']
+    calibration.imu.acc_ortho_std_tol = dataBase_content['calibration']['tolerance']['acc_ortho']
     calibration.init()
     global running_calib, first_ekf_iteration
     running_calib = True
     first_ekf_iteration = True
-    bluetoothTransmission.enable_stream_channel(["time","gyro_raw","acc_raw"])
+    bluetoothTransmission.enable_stream_channel(["time_us","gyro_raw","acc_raw"])
     bluetoothTransmission.data_to_send.append({"send_stream_delay_ms" : calibration_sensor_stream_delay})
 
 def update_dataBase_on_received_data(data):
@@ -144,19 +144,20 @@ def on_received_data():
             calibration.imu.new_acc_sample = np.array(data["acc_raw"])
             if running_calib:
                 if first_ekf_iteration:
-                    calibration.calibration.initAttitudeUsingAcc()
+                    calibration.initAttitudeUsingAcc()
                     first_ekf_iteration = False
                 else:
                     calibration.predict()
                     calibration.update()
-                if calibration.calibration.isCalibrated():
+                    print("Calibration progress: ", round(calibration.imu.gyr_bias_std_tol/calibration.imu.gyr_bias_cov_indicator(),3), " ", round(calibration.imu.acc_bias_std_tol/calibration.imu.acc_bias_cov_indicator(),3), " ", round(calibration.imu.gyr_ortho_std_tol/calibration.imu.gyr_ortho_cov_indicator(),3), " ", round(calibration.imu.acc_ortho_std_tol/calibration.imu.acc_ortho_cov_indicator(),3))
+                if calibration.imu.calibrated():
                     running_calib = False
                     new_calib = {}
                     new_calib["gyro_bias_co"] = calibration.imu.gyr_bias_co.tolist()
                     new_calib["acc_bias_co"] = calibration.imu.acc_bias_co.tolist()
                     new_calib["gyro_scale_co"] = calibration.imu.gyr_ortho_co.reshape(3,3).tolist()
                     new_calib["acc_scale_co"] = calibration.imu.acc_ortho_co.reshape(3,3).tolist()
-                    modify_calibration(calibration.calibration.getCalibrationData())
+                    modify_calibration(new_calib)
                     bluetoothTransmission.enable_stream_channel([bluetoothTransmission.receive_head[i]["name"] for i in range(len(bluetoothTransmission.receive_head))])
                     bluetoothTransmission.disable_stream_channel(["internal_event"])
                     bluetoothTransmission.data_to_send.append({"send_stream_delay_ms" : normal_sensor_stream_delay})
@@ -173,7 +174,7 @@ def setup():
     bluetoothTransmission.init_transmission(dataBase_content['bluetooth_address'])
 
     if dataBase_content['calibration']['last_calibration']['date'] is None or time.time() - time.mktime(time.strptime(dataBase_content['calibration']['last_calibration']['date'], "%Y-%m-%d %H:%M:%S")) > 86400:
-        print("Starting a new calibration because the last one was done more than 1 day ago")
+        print("Starting a new calibration because the last one was done more than 1 day ago or never done")
         begin_calibration(dataBase_content)
     else:
         print("Using the last calibration data")
