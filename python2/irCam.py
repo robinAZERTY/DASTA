@@ -109,14 +109,14 @@ def process(grayScale,expectedEntities):
     
     #on retourne les points choisi des entités dans une liste -> c'est ce qu'on va envoyer en bluetooth
     return [entity.chosePoints() for entity in entities]
-        
+    
    
 ledNumber = 2 #nombre de leds attendues
 
 
-def init():
-    print("opening camera")
-    cap = cv2.VideoCapture(1)
+def init(camera_index=0):
+    print("opening camera at index",camera_index)
+    cap = cv2.VideoCapture(camera_index)
     # set to 480p
     # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)

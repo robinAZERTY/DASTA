@@ -9,9 +9,27 @@ import json
 import os
 
 
-dataBase_fileName = 'Phase2NoAsync\dataBase.json'
+dataBase_fileName = 'Phase3\dataBase.json'
 default_content ={
     'bluetooth_address': '08:D1:F9:CE:C3:76',
+    'ir leds': {
+        'led1': {
+            'position': [0.1351, -0.1380, -0.01791],
+            'noise': 1
+        },
+        'led2': {
+            'position': [0.1351, 0.1380, -0.01791],
+            'noise': 1
+        },
+        'led3': {
+            'position': [-0.1365, 0.1380, -0.01214],
+            'noise': 1
+        },
+        'led4': {
+            'position': [-0.1365, -0.1380, -0.01214],
+            'noise': 1
+        }
+    },
     'calibration':
         {
         'last_calibration':
@@ -21,8 +39,16 @@ default_content ={
             },
         'initilization':
             {
-                'gravity':9.812,
-                'orientation_covariance':0.1,
+                'environment' :
+                    {
+                    'gravity':9.812,
+                    },
+                'critical state':
+                    {
+                    'orientation_covariance':0.1,
+                    },
+                'imu':
+                    {
                 'gyro_noise':0.0017,
                 'gyro_std_bias':0.03,
                 'gyro_std_cross':0.01,
@@ -31,13 +57,47 @@ default_content ={
                 'acc_std_bias':0.7848,
                 'acc_std_cross':0.01,
                 'acc_std_gain':0.01
+                    },
+                'cameras':
+                    {
+                        'camera1':
+                        {
+                            'id' : 1,
+                            'fov' : 120,
+                            'fov_std' : 1,
+                            'distorion' : 0.16,
+                            'distorion std' : 0.01,
+                            'position' : [2,-2,-2.7],
+                            'position std' : [0.1,0.1,0.1],
+                            'orientation rpy' : [0,45,-135],
+                            'orientation rpy std' : [10, 10, 10]
+                        },
+                        'camera2' :
+                        {
+                            'id' : 2,
+                            'fov' : 120,
+                            'fov_std' : 1,
+                            'distorion' : 0.16,
+                            'distorion std' : 0.01,
+                            'position' : [-2,-2,-2.7],
+                            'position std' : [0.1,0.1,0.1],
+                            'orientation rpy' : [0,45,45],
+                            'orientation rpy std' : [10, 10, 10]
+                        }
+                    },
+
             },
         'tolerance':
             {
                 'gyro_bias':0.0003,
                 'acc_bias':0.005,
                 'gyro_ortho':0.005,
-                'acc_ortho':0.005
+                'acc_ortho':0.005,
+                'camera position':0.01,
+                'camera orientation': 0.5,
+                'camera fov': 0.5,
+                'camera distortion': 0.005,
+                
             }
         },
     'user_control': 
@@ -96,19 +156,42 @@ def modify_calibration(new_calib):
 
 first_ekf_iteration = True
 def begin_calibration(dataBase_content):
-    calib_settings = dataBase_content['calibration']['initilization']
-    calibration.env.gravity = calib_settings['gravity']
-    calibration.criticalState.setOriCov(calib_settings['orientation_covariance'])
-    calibration.imu.setGyrNoise(calib_settings['gyro_noise'])
-    calibration.imu.setGyrBiasCov(calib_settings['gyro_std_bias'])
-    calibration.imu.setGyrOrthoCov(calib_settings['gyro_std_cross'],calib_settings['gyro_std_gain'])
-    calibration.imu.setAccNoise(calib_settings['acc_noise'])
-    calibration.imu.setAccBiasCov(calib_settings['acc_std_bias'])
-    calibration.imu.setAccOrthoCov(calib_settings['acc_std_cross'],calib_settings['acc_std_gain'])
+    ledsSettings = dataBase_content['ir leds']
+    print(ledsSettings)
+    calibration.ir_leds = []
+    for ledname in ledsSettings.keys():
+        calibration.ir_leds.append(calibration.led(ledsSettings[ledname]["position"],ledsSettings[ledname]["noise"]))
+    
+    calib_imu_settings = dataBase_content['calibration']['initilization']['imu']
+    calib_env_settings = dataBase_content['calibration']['initilization']['environment']
+    calib_critical_state_settings = dataBase_content['calibration']['initilization']['critical state']
+    calib_cam_settings = dataBase_content['calibration']['initilization']['cameras']
+    calibration.env.gravity = calib_env_settings['gravity']
+    calibration.criticalState.setOriCov(calib_critical_state_settings['orientation_covariance'])
+    calibration.imu.setGyrNoise(calib_imu_settings['gyro_noise'])
+    calibration.imu.setGyrBiasCov(calib_imu_settings['gyro_std_bias'])
+    calibration.imu.setGyrOrthoCov(calib_imu_settings['gyro_std_cross'],calib_imu_settings['gyro_std_gain'])
+    calibration.imu.setAccNoise(calib_imu_settings['acc_noise'])
+    calibration.imu.setAccBiasCov(calib_imu_settings['acc_std_bias'])
+    calibration.imu.setAccOrthoCov(calib_imu_settings['acc_std_cross'],calib_imu_settings['acc_std_gain'])
     calibration.imu.gyr_bias_std_tol = dataBase_content['calibration']['tolerance']['gyro_bias']
     calibration.imu.acc_bias_std_tol = dataBase_content['calibration']['tolerance']['acc_bias']
     calibration.imu.gyr_ortho_std_tol = dataBase_content['calibration']['tolerance']['gyro_ortho']
     calibration.imu.acc_ortho_std_tol = dataBase_content['calibration']['tolerance']['acc_ortho']
+    calibration.cameras = []
+    for camera in calib_cam_settings.keys():
+        new_cam = calibration.WideFoVCamera()
+        new_cam.setIndex(calib_cam_settings[camera]['id'])
+        new_cam.setK(calib_cam_settings[camera]['fov'])
+        new_cam.setKcov(calib_cam_settings[camera]['fov_std'])
+        new_cam.distortion_coefficient = calib_cam_settings[camera]['distorion']
+        new_cam.setDistortionCoefficientCov(calib_cam_settings[camera]['distorion std'])
+        new_cam.position = np.array(calib_cam_settings[camera]['position'])
+        new_cam.setPosCov(np.array(calib_cam_settings[camera]['position std']))
+        new_cam.setOrientation(np.array(calib_cam_settings[camera]['orientation rpy']))
+        new_cam.setOriCov(np.array(calib_cam_settings[camera]['orientation rpy std']))
+        calibration.cameras.append(new_cam)
+        
     calibration.init()
     global running_calib, first_ekf_iteration
     running_calib = True
@@ -154,16 +237,24 @@ def on_received_data():
                     first_ekf_iteration = False
                 else:
                     calibration.predict()
-                    calibration.update()
-                    print("Calibration progress: ", round(calibration.imu.gyr_bias_std_tol/calibration.imu.gyr_bias_cov_indicator(),3), " ", round(calibration.imu.acc_bias_std_tol/calibration.imu.acc_bias_cov_indicator(),3), " ", round(calibration.imu.gyr_ortho_std_tol/calibration.imu.gyr_ortho_cov_indicator(),3), " ", round(calibration.imu.acc_ortho_std_tol/calibration.imu.acc_ortho_cov_indicator(),3))
+                    print("Calibration progress: ", round(calibration.imu.gyr_bias_std_tol/calibration.imu.gyr_bias_cov_indicator(),3), " ", round(calibration.imu.acc_bias_std_tol/calibration.imu.acc_bias_cov_indicator(),3), " ", round(calibration.imu.gyr_ortho_std_tol/calibration.imu.gyr_ortho_cov_indicator(),3), " ", round(calibration.imu.acc_ortho_std_tol/calibration.imu.acc_ortho_cov_indicator(),3),[round(calibration.cameras[i].position_tolerance/calibration.cameras[i].position_cov_indicator(),3) for i in range(len(calibration.cameras))],[round(calibration.cameras[i].q_tolerance/calibration.cameras[i].orientation_cov_indicator(),3) for i in range(len(calibration.cameras))],[round(calibration.cameras[i].k_tolerance/calibration.cameras[i].k_cov_indicator(),3) for i in range(len(calibration.cameras))],[round(calibration.cameras[i].distortion_coefficient_tolerance/calibration.cameras[i].distortion_coefficient_cov_indicator(),3) for i in range(len(calibration.cameras))])
                 if calibration.imu.calibrated():
-                    running_calib = Falsen
-                    new_calib = {}
-                    new_calib["gyro_bias_co"] = calibration.imu.gyr_bias_co.tolist()
-                    new_calib["acc_bias_co"] = calibration.imu.acc_bias_co.tolist()
-                    new_calib["gyro_scale_co"] = calibration.imu.gyr_ortho_co.reshape(3,3).tolist()
-                    new_calib["acc_scale_co"] = calibration.imu.acc_ortho_co.reshape(3,3).tolist()
-                    modify_calibration(new_calib)
+                    running_calib = False
+                    new_imu_calib = {}
+                    
+                    new_imu_calib["gyro_bias_co"] = calibration.imu.gyr_bias_co.tolist()
+                    new_imu_calib["acc_bias_co"] = calibration.imu.acc_bias_co.tolist()
+                    new_imu_calib["gyro_scale_co"] = calibration.imu.gyr_ortho_co.reshape(3,3).tolist()
+                    new_imu_calib["acc_scale_co"] = calibration.imu.acc_ortho_co.reshape(3,3).tolist()
+                    new_cam_calib = {}
+                    for i in range(len(calibration.cameras)):
+                        new_cam_calib["camera"+str(i+1)] = {}
+                        new_cam_calib["camera"+str(i+1)]["position"] = calibration.cameras[i].position.tolist()
+                        new_cam_calib["camera"+str(i+1)]["orientation"] = calibration.cameras[i].orientation.tolist()
+                        new_cam_calib["camera"+str(i+1)]["k"] = calibration.cameras[i].k
+                        new_cam_calib["camera"+str(i+1)]["distortion"] = calibration.cameras[i].distortion_coefficient
+                        
+                    modify_calibration({"imu":new_imu_calib,"cameras":new_cam_calib})
                     bluetoothTransmission.enable_stream_channel([bluetoothTransmission.receive_head[i]["name"] for i in range(len(bluetoothTransmission.receive_head))])
                     bluetoothTransmission.disable_stream_channel(["internal_event"])
                     bluetoothTransmission.data_to_send.append({"send_stream_delay_ms" : normal_sensor_stream_delay})
@@ -184,7 +275,9 @@ def setup():
         begin_calibration(dataBase_content)
     else:
         print("Using the last calibration data")
-        bluetoothTransmission.data_to_send.append(dataBase_content['calibration']['last_calibration']['data'])
+        bluetoothTransmission.data_to_send.append(dataBase_content['calibration']['last_calibration']['data']['imu'])
+        bluetoothTransmission.data_to_send.append(dataBase_content['calibration']['last_calibration']['data']['cameras'])
+        bluetoothTransmission.data_to_send.append(dataBase_content['ir leds'])
         bluetoothTransmission.enable_stream_channel([bluetoothTransmission.receive_head[i]["name"] for i in range(len(bluetoothTransmission.receive_head))])
         bluetoothTransmission.disable_stream_channel(["internal_event"])
         bluetoothTransmission.data_to_send.append({"send_stream_delay_ms" : normal_sensor_stream_delay})
@@ -209,11 +302,29 @@ def pack_command():
         gamecontroller.disengage = False
 
 if __name__ == "__main__":
+    import cv2
     setup()
     while True:
         bluetoothTransmission.run_transmission()
         if len(bluetoothTransmission.received_data) > 0:
             on_received_data()
+        new_cam = False
+        for cam in calibration.cameras:
+            if cam.read():
+                new_cam = True
+            screenName = 'cam'+str(cam.index)
+            frame = cam.buid_desription_frame()
+            if frame is not None:
+                cv2.imshow(screenName,cam.frame)
+        if new_cam:
+            calibration.update()
+        
+        key = cv2.waitKey(1)
+        if key == ord('q'):
+            break
+                
         gamecontroller.run()
         pack_command()
         time.sleep(0.001)
+    cv2.destroyAllWindows()
+    dataBase.close()
