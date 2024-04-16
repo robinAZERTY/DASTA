@@ -2,9 +2,9 @@ import bluetoothTransmission
 import time
 import numpy as np
 import calibration
-import progressbar
+# import progressbar
 import gamecontroller
-import FakeDrone
+# import FakeDrone
 import json
 import os
 
@@ -157,7 +157,7 @@ def on_received_data():
                     calibration.update()
                     print("Calibration progress: ", round(calibration.imu.gyr_bias_std_tol/calibration.imu.gyr_bias_cov_indicator(),3), " ", round(calibration.imu.acc_bias_std_tol/calibration.imu.acc_bias_cov_indicator(),3), " ", round(calibration.imu.gyr_ortho_std_tol/calibration.imu.gyr_ortho_cov_indicator(),3), " ", round(calibration.imu.acc_ortho_std_tol/calibration.imu.acc_ortho_cov_indicator(),3))
                 if calibration.imu.calibrated():
-                    running_calib = Falsen
+                    running_calib = False
                     new_calib = {}
                     new_calib["gyro_bias_co"] = calibration.imu.gyr_bias_co.tolist()
                     new_calib["acc_bias_co"] = calibration.imu.acc_bias_co.tolist()

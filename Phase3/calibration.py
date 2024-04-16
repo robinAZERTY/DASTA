@@ -270,7 +270,13 @@ class WideFoVCamera:
                         self.frame_shape = None
                 else:
                         self.cap = irCam.init(index)
-                        self.frame_shape = (self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))     
+                        self.frame_shape = (self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        def setBrightness(self,brightness):
+                self.cap.set(cv2.CAP_PROP_BRIGHTNESS, brightness)
+
+        def setContrast(self,contrast):
+                self.cap.set(cv2.CAP_PROP_CONTRAST, contrast)           
 
         def read(self):
                 self.fresh_led_measurements, self.frame = irCam.main(self.cap)

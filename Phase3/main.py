@@ -2,9 +2,9 @@ import bluetoothTransmission
 import time
 import numpy as np
 import calibration
-import progressbar
+# import progressbar
 import gamecontroller
-import FakeDrone
+# import FakeDrone
 import json
 import os
 
@@ -60,21 +60,11 @@ default_content ={
                     },
                 'cameras':
                     {
-                        'camera1':
+                        'camera1' :
                         {
                             'id' : 1,
-                            'fov' : 120,
-                            'fov_std' : 1,
-                            'distorion' : 0.16,
-                            'distorion std' : 0.01,
-                            'position' : [2,-2,-2.7],
-                            'position std' : [0.1,0.1,0.1],
-                            'orientation rpy' : [0,45,-135],
-                            'orientation rpy std' : [10, 10, 10]
-                        },
-                        'camera2' :
-                        {
-                            'id' : 2,
+                            'brightness': 100,
+                            'contrast': 16,
                             'fov' : 120,
                             'fov_std' : 1,
                             'distorion' : 0.16,
@@ -82,6 +72,20 @@ default_content ={
                             'position' : [-2,-2,-2.7],
                             'position std' : [0.1,0.1,0.1],
                             'orientation rpy' : [0,45,45],
+                            'orientation rpy std' : [10, 10, 10]
+                        },
+                        'camera2':
+                        {
+                            'id' : 2,
+                            'brightness': 100,
+                            'contrast': 17,
+                            'fov' : 120,
+                            'fov_std' : 1,
+                            'distorion' : 0.16,
+                            'distorion std' : 0.01,
+                            'position' : [2,-2,-2.7],
+                            'position std' : [0.1,0.1,0.1],
+                            'orientation rpy' : [0,45,-135],
                             'orientation rpy std' : [10, 10, 10]
                         }
                     },
@@ -190,6 +194,10 @@ def begin_calibration(dataBase_content):
         new_cam.setPosCov(np.array(calib_cam_settings[camera]['position std']))
         new_cam.setOrientation(np.array(calib_cam_settings[camera]['orientation rpy']))
         new_cam.setOriCov(np.array(calib_cam_settings[camera]['orientation rpy std']))
+        new_cam.setBrightness(calib_cam_settings[camera]['brightness'])
+        
+        # new_cam.setBrightness(calib_cam_settings[camera]['brightness'])
+        # new_cam.setContrast(calib_cam_settings[camera]['contrast'])
         calibration.cameras.append(new_cam)
         
     calibration.init()
@@ -315,7 +323,7 @@ if __name__ == "__main__":
             screenName = 'cam'+str(cam.index)
             frame = cam.buid_desription_frame()
             if frame is not None:
-                cv2.imshow(screenName,cam.frame)
+                cv2.imshow(screenName,frame)
         if new_cam:
             calibration.update()
         
