@@ -124,6 +124,7 @@ def update_dataBase_on_received_data(data):
     #update the telemetry history
     if dataBase_content['telemetry_history'] is None:
         dataBase_content['telemetry_history'] = []
+    data[-1]['remote_commands'] =  [gamecontroller.x, gamecontroller.y, gamecontroller.z, gamecontroller.thrust+gamecontroller.ThrustTilte]
     dataBase_content['telemetry_history']+= data
     #update also the gamecontroller data
     dataBase_content['user_control']['remote_commands'] = [gamecontroller.x, gamecontroller.y, gamecontroller.z, gamecontroller.thrust+gamecontroller.ThrustTilte]
@@ -184,7 +185,7 @@ def setup():
     bluetoothTransmission.fake_transmission = useFakeDrone
     bluetoothTransmission.init_transmission(dataBase_content['bluetooth_address'])
 
-    if dataBase_content['calibration']['last_calibration']['date'] is None or time.time() - time.mktime(time.strptime(dataBase_content['calibration']['last_calibration']['date'], "%Y-%m-%d %H:%M:%S")) > 86400:
+    if dataBase_content['calibration']['last_calibration']['date'] is None or time.time() - time.mktime(time.strptime(dataBase_content['calibration']['last_calibration']['date'], "%Y-%m-%d %H:%M:%S")) > 86400 and not running_calib:
         print("Starting a new calibration because the last one was done more than 1 day ago or never done")
         begin_calibration(dataBase_content)
     else:

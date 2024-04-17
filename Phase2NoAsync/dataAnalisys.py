@@ -42,6 +42,16 @@ batteries_voltage = [entry['battery_voltages'] for entry in data['telemetry_hist
 batteries_lvl = [entry['battery_lvl'] for entry in data['telemetry_history']if 'battery_lvl' in entry]
 battery_time = [entry['time_us']/1e6 for entry in data['telemetry_history']if 'battery_lvl' in entry]
 
+remote_commands_x = [entry['remote_commands'][0] for entry in data['telemetry_history'] if 'remote_commands' in entry]
+remote_commands_y = [entry['remote_commands'][1] for entry in data['telemetry_history'] if 'remote_commands' in entry]
+remote_commands_z = [entry['remote_commands'][2] for entry in data['telemetry_history'] if 'remote_commands' in entry]
+remote_commands_throttle = [entry['remote_commands'][3] for entry in data['telemetry_history'] if 'remote_commands' in entry]
+remote_commands_time = [entry['time_us']/1e6 for entry in data['telemetry_history'] if 'remote_commands' in entry]
+
+
+# print(remote_commands)
+# print(remote_commands_time)
+
 # Plot et enregistrement des vitesses angulaires
 plt.figure(figsize=(12, 10))
 plt.subplot(3, 1, 1)
@@ -63,6 +73,7 @@ plt.legend()
 plt.subplot(3, 1, 3)
 plt.plot(time, angular_vel_command_z, label='Angular Velocity Z command')
 plt.plot(time, gyr_z, label='Angular Velocity Z')
+plt.plot(remote_commands_time, remote_commands_z, label='Remote Yaw Command')
 plt.title('Angular Velocity Z Over Time')
 plt.xlabel('Time (s)')
 plt.ylabel('Angular Velocity (rad/s)')
@@ -85,6 +96,7 @@ plt.figure(figsize=(12, 6))
 plt.subplot(2, 1, 1)
 plt.plot(time, roll_command, label='Roll Command')
 plt.plot(time, orientation_roll, label='Roll')
+plt.plot(remote_commands_time, remote_commands_x, label='Remote Roll Command')
 plt.title('Roll Over Time')
 plt.xlabel('Time (s)')
 plt.ylabel('Orientation (radians)')
@@ -93,6 +105,7 @@ plt.legend()
 plt.subplot(2, 1, 2)
 plt.plot(time, pitch_command, label='Pitch Command')
 plt.plot(time, orientation_pitch, label='Pitch')
+plt.plot(remote_commands_time, remote_commands_y, label='Remote Pitch Command')
 plt.title('Pitch Over Time')
 plt.xlabel('Time (s)')
 plt.ylabel('Orientation (radians)')
@@ -154,10 +167,11 @@ plt.show()
 # Plot et enregistrement des vitesses des moteurs
 plt.figure(figsize=(12, 6))
 plt.plot(time, motors_speed)
+plt.plot(remote_commands_time, remote_commands_throttle, label='Remote Throttle Command')
 plt.title('Motors Speed Over Time')
 plt.xlabel('Time (s)')
 plt.ylabel('Speed')
-plt.legend(['Motor 1', 'Motor 2', 'Motor 3', 'Motor 4'])
+plt.legend(['Motor 1', 'Motor 2', 'Motor 3', 'Motor 4', 'Remote Throttle Command'])
 plt.tight_layout()
 
 # Enregistrement de la figure en tant qu'objet Matplotlib

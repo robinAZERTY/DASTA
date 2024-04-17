@@ -71,10 +71,10 @@
     },
     "user_control": {
         "remote_commands": [
+            0.063507080078125,
+            -0.9375,
             0.0,
-            0.0,
-            0.0,
-            0
+            0.6503522165119648
         ],
         "remote_angula_velocity_sensitive": 0.5,
         "remote_yaw_sensitive": 1.0,
