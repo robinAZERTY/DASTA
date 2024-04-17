@@ -141,9 +141,13 @@ def find_key(dictionnaire, valeur):
 def on_received_data():
     global running_calib, first_ekf_iteration
     
-    update_dataBase_on_received_data(bluetoothTransmission.received_data)
+    # update_dataBase_on_received_data(bluetoothTransmission.received_data)
     
     for data in bluetoothTransmission.received_data:
+        # if "orientation_rpy" in data:
+        #     print("Orientation: ", np.round(data["orientation_rpy"],3))
+        # if "battery_lvl" in data:
+        #     print("Battery level: ", data["battery_lvl"][-1])
         if "time_us" in data and "gyro_raw" in data and "acc_raw" in data:
             calibration.imu.time = data["time_us"]/1000000.0
             calibration.imu.new_gyr_sample = np.array(data["gyro_raw"])
@@ -169,7 +173,8 @@ def on_received_data():
                     bluetoothTransmission.data_to_send.append({"send_stream_delay_ms" : normal_sensor_stream_delay})
                     print("Calibration done")
         if ("internal_event" in data):
-            print("Internal event received: ", find_key(bluetoothTransmission.embedded_event_dict, data["internal_event"]))
+            if (data["internal_event"] != bluetoothTransmission.embedded_event_dict["None2"]):
+                print("Internal event received: ", find_key(bluetoothTransmission.embedded_event_dict, data["internal_event"]))
     #flush the received data
     bluetoothTransmission.received_data = []
     
