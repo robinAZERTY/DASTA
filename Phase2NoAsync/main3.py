@@ -142,7 +142,7 @@ def find_key(dictionnaire, valeur):
 def on_received_data():
     global running_calib, first_ekf_iteration
     
-    # update_dataBase_on_received_data(bluetoothTransmission.received_data)
+    update_dataBase_on_received_data(bluetoothTransmission.received_data)
     
     for data in bluetoothTransmission.received_data:
         # if "orientation_rpy" in data:

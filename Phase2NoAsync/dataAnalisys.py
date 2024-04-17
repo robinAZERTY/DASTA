@@ -42,9 +42,9 @@ batteries_voltage = [entry['battery_voltages'] for entry in data['telemetry_hist
 batteries_lvl = [entry['battery_lvl'] for entry in data['telemetry_history']if 'battery_lvl' in entry]
 battery_time = [entry['time_us']/1e6 for entry in data['telemetry_history']if 'battery_lvl' in entry]
 
-remote_commands_x = [entry['remote_commands'][0] for entry in data['telemetry_history'] if 'remote_commands' in entry]
-remote_commands_y = [entry['remote_commands'][1] for entry in data['telemetry_history'] if 'remote_commands' in entry]
-remote_commands_z = [entry['remote_commands'][2] for entry in data['telemetry_history'] if 'remote_commands' in entry]
+remote_commands_x = [entry['remote_commands'][0]*0.1 for entry in data['telemetry_history'] if 'remote_commands' in entry]
+remote_commands_y = [entry['remote_commands'][1]*0.1 for entry in data['telemetry_history'] if 'remote_commands' in entry]
+remote_commands_z = [entry['remote_commands'][2]*0.1 for entry in data['telemetry_history'] if 'remote_commands' in entry]
 remote_commands_throttle = [entry['remote_commands'][3] for entry in data['telemetry_history'] if 'remote_commands' in entry]
 remote_commands_time = [entry['time_us']/1e6 for entry in data['telemetry_history'] if 'remote_commands' in entry]
 
