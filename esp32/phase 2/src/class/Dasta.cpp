@@ -22,8 +22,9 @@ void Dasta::init()
     communication.device_name = "ESP32-Bluetooth";
     communication.start(); // wait for connection
     sensors.init();        // initialize the sensors (IMU)
-
     inited = true;
+    sensors.readSensors();
+    estimator.initFromAccel(sensors.acc);
 }
 void Dasta::run_angular_velocity_control(float dt)
 {

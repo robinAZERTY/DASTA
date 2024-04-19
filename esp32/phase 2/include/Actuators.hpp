@@ -1,7 +1,7 @@
 #ifndef ACTUATOR_HPP
 #define ACTUATOR_HPP
 
-// #include "Led.hpp"
+#include "irLed.hpp"
 #include "ESC.hpp"
 #include "vector.hpp"
 
@@ -11,7 +11,7 @@ public:
     Actuators();
     ~Actuators();
 
-    // Led led1, led2;
+    IrLed led1, led2, led3, led4;
     ESC motor1, motor2, motor3, motor4;
     Vector motor_speeds = Vector(4);
     void stopMotors();

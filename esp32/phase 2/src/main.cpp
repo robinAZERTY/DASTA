@@ -133,10 +133,19 @@ void print(const int64_t &now)
 }
 #endif
 
+// #define IR_LED_1_PIN 17
+// #define IR_LED_2_PIN 5
+// #define IR_LED_3_PIN 18
+// #define IR_LED_4_PIN 16
+
 void setup()
 {
   Serial.begin(115200);
   dasta.init();
+  // dasta.actuators.led1.on();
+  // dasta.actuators.led2.on();
+  // dasta.actuators.led3.on();
+  // dasta.actuators.led4.on();
 }
 
 void loop()
